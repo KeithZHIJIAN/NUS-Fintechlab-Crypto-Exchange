@@ -1,4 +1,4 @@
-from graphene import Decimal
+from decimal import Decimal
 import pika
 
 
