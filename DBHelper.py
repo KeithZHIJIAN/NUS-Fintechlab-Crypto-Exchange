@@ -105,7 +105,10 @@ class DBHelper:
         a = inspector.get_table_names()
         while len(a) != 0:
             print("===>")
-            cls.drop_tables(a)
+            try:
+                cls.drop_tables(a)
+            except Exception as e:
+                print(e)
             inspector = sqlalchemy.inspect(cls.engine)
             a = inspector.get_table_names()
 
@@ -141,31 +144,93 @@ class DBHelper:
             open_ask_query = (
                 "CREATE TABLE OPEN_ASK_ORDERS_"
                 + symbol_name
-                + " (ORDER_ID VARCHAR(64) NOT NULL, WALLET_ID  VARCHAR(64) NOT NULL, OWNER  VARCHAR(64) NOT NULL, QUANTITY DECIMAL(15,5) NOT NULL, SYMBOL VARCHAR(64) NOT NULL, PRICE DECIMAL(15,5) NOT NULL, OPEN_QUANTITY DECIMAL(15,5) NOT NULL, FILL_COST DECIMAL(15,5) NOT NULL, CREATED_AT timestamp without time zone NOT NULL, UPDATED_AT  timestamp without time zone NOT NULL, PRIMARY KEY(ORDER_ID), FOREIGN KEY (WALLET_ID) REFERENCES WALLET(WALLET_ID), FOREIGN KEY (OWNER) REFERENCES USERS(USER_ID) );"
+                + "("
+                + "ORDERID  	VARCHAR(64) 		NOT NULL,"
+                + "WALLETID  	INTEGER 		    NOT NULL,"
+                + "OWNER  		INTEGER 			NOT NULL,"
+                + "QUANTITY 	DECIMAL(15,5) 		NOT NULL,"
+                + "SYMBOL  	    VARCHAR(64) 		NOT NULL,"
+                + "PRICE 		DECIMAL(15,5) 		NOT NULL,"
+                + "OPENQUANTITY DECIMAL(15,5) 		NOT NULL,"
+                + "FILLCOST 	DECIMAL(15,5) 		NOT NULL,"
+                + "CREATEDAT  	timestamp without time zone 	NOT NULL,"
+                + "UPDATEDAT  	timestamp without time zone 	NOT NULL,"
+                + "PRIMARY KEY(ORDERID),"
+                + "FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),"
+                + "FOREIGN KEY (OWNER) REFERENCES USERS(USERID)"
+                + ");"
             )
             # Create Open Bid
             open_bid_query = (
                 "CREATE TABLE OPEN_BID_ORDERS_"
                 + symbol_name
-                + " (ORDER_ID VARCHAR(64) NOT NULL, WALLET_ID VARCHAR(64) NOT NULL, OWNER VARCHAR(64) NOT NULL, QUANTITY DECIMAL(15,5) NOT NULL, SYMBOL  VARCHAR(64) NOT NULL, PRICE DECIMAL(15,5) NOT NULL, OPEN_QUANTITY DECIMAL(15,5) NOT NULL, FILL_COST DECIMAL(15,5) NOT NULL, CREATED_AT  timestamp without time zone NOT NULL, UPDATED_AT timestamp without time zone NOT NULL, PRIMARY KEY(ORDER_ID), FOREIGN KEY (WALLET_ID) REFERENCES WALLET(WALLET_ID), FOREIGN KEY (OWNER) REFERENCES USERS(USER_ID) );"
+                + "("
+                + "ORDERID  	VARCHAR(64) 		NOT NULL,"
+                + "WALLETID  	INTEGER 		    NOT NULL,"
+                + "OWNER  		INTEGER 			NOT NULL,"
+                + "QUANTITY 	DECIMAL(15,5) 		NOT NULL,"
+                + "SYMBOL  	    VARCHAR(64) 		NOT NULL,"
+                + "PRICE 		DECIMAL(15,5) 		NOT NULL,"
+                + "OPENQUANTITY DECIMAL(15,5) 		NOT NULL,"
+                + "FILLCOST 	DECIMAL(15,5) 		NOT NULL,"
+                + "CREATEDAT  	timestamp without time zone 	NOT NULL,"
+                + "UPDATEDAT  	timestamp without time zone 	NOT NULL,"
+                + "PRIMARY KEY(ORDERID),"
+                + "FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),"
+                + "FOREIGN KEY (OWNER) REFERENCES USERS(USERID)"
+                + ");"
             )
             # Create Closed
             closed_query = (
                 "CREATE TABLE CLOSED_ORDERS_"
                 + symbol_name
-                + " (ORDER_ID VARCHAR(64) NOT NULL, WALLET_ID VARCHAR(64) NOT NULL, OWNER VARCHAR(64) NOT NULL, BUY_SIDE  VARCHAR(64) NOT NULL, QUANTITY DECIMAL(15,5) NOT NULL, SYMBOL  VARCHAR(64) NOT NULL, PRICE DECIMAL(15,5) NOT NULL, FILL_COST DECIMAL(15,5) NOT NULL, FILL_PRICE DECIMAL(15,5) NOT NULL, CREATED_AT  timestamp without time zone NOT NULL, FILLED_AT  timestamp without time zone NOT NULL, PRIMARY KEY(ORDER_ID), FOREIGN KEY (WALLET_ID) REFERENCES WALLET(WALLET_ID), FOREIGN KEY (OWNER) REFERENCES USERS(USER_ID) );"
+                + "("
+                + "ORDERID  	VARCHAR(64) 		NOT NULL,"
+                + "WALLETID  	INTEGER 		    NOT NULL,"
+                + "OWNER  		INTEGER 			NOT NULL,"
+                + "BUYSIDE  	VARCHAR(64) 		NOT NULL,"
+                + "QUANTITY 	DECIMAL(15,5) 		NOT NULL,"
+                + "SYMBOL  	    VARCHAR(64) 		NOT NULL,"
+                + "PRICE 		DECIMAL(15,5) 		NOT NULL,"
+                + "FILLCOST 	DECIMAL(15,5) 		NOT NULL,"
+                + "FILLPRICE 	DECIMAL(15,5) 		NOT NULL,"
+                + "CREATEDAT  	timestamp without time zone 	NOT NULL,"
+                + "FILLEDAT  	timestamp without time zone 	NOT NULL,"
+                + "PRIMARY KEY(ORDERID),"
+                + "FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),"
+                + "FOREIGN KEY (OWNER) REFERENCES USERS(USERID)"
+                + ");"
             )
             # Create Order Fillings
             order_fillings_query = (
                 "CREATE TABLE ORDER_FILLINGS_"
                 + symbol_name
-                + " (MATCH_ID SERIAL PRIMARY KEY, BUY_ORDER_ID  VARCHAR(64), SELL_ORDER_ID  VARCHAR(64), SYMBOL VARCHAR(64) NOT NULL, PRICE DECIMAL(15,5) NOT NULL, QUANTITY DECIMAL(15,5) NOT NULL, TIME  timestamp without time zone NOT NULL);"
+                + "("
+                + "MATCHID 	    SERIAL 			NOT NULL,"
+                + "BUYORDERID  	VARCHAR(64),"
+                + "SELLORDERID  VARCHAR(64),"
+                + "SYMBOL  	    VARCHAR(64) 	NOT NULL,"
+                + "PRICE 		DECIMAL(15,5) 	NOT NULL,"
+                + "QUANTITY 	DECIMAL(15,5) 	NOT NULL,"
+                + "TIME  		timestamp without time zone 	NOT NULL,"
+                + "PRIMARY KEY(MATCHID)"
+                + ");"
             )
             # Create Market_History
             market_history_query = (
                 "CREATE TABLE MARKET_HISTORY_"
                 + symbol_name
-                + " (TIME timestamp without time zone NOT NULL, OPEN DECIMAL(15,5) NOT NULL, CLOSE DECIMAL(15,5) NOT NULL, HIGH DECIMAL(15,5) NOT NULL, LOW DECIMAL(15,5) NOT NULL, VOLUME DECIMAL(15,5) NOT NULL, VWAP DECIMAL(15,5) NOT NULL, NUM_TRADES INTEGER NOT NULL, PRIMARY KEY(TIME));"
+                + "("
+                + "TIME  		timestamp without time zone 	NOT NULL,"
+                + "OPEN 		DECIMAL(15,5) 		NOT NULL,"
+                + "CLOSE 		DECIMAL(15,5) 		NOT NULL,"
+                + "HIGH 		DECIMAL(15,5) 		NOT NULL,"
+                + "LOW 		    DECIMAL(15,5) 		NOT NULL,"
+                + "VOLUME 		DECIMAL(15,5) 		NOT NULL,"
+                + "VWAP 		DECIMAL(15,5) 		NOT NULL,"
+                + "NUM_TRADES 	INTEGER 			NOT NULL	DEFAULT 0,"
+                + "PRIMARY KEY(TIME)"
+                + ");"
             )
 
             # Execute Creation
@@ -240,7 +305,7 @@ class DBHelper:
                 cls.con.execute(
                     "INSERT INTO OPEN_BID_ORDERS_"
                     + symbol_name
-                    + " (ORDER_ID, WALLET_ID, OWNER, QUANTITY, SYMBOL, PRICE, OPEN_QUANTITY, FILL_COST, CREATED_AT, UPDATED_AT) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);",
+                    + " (ORDERID, WALLETID, OWNER, QUANTITY, SYMBOL, PRICE, OPENQUANTITY, FILLCOST, CREATEDAT, UPDATEDAT) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);",
                     insertion_order,
                 )
             except Exception as e:
@@ -251,7 +316,7 @@ class DBHelper:
                 cls.con.execute(
                     "INSERT INTO OPEN_ASK_ORDERS_"
                     + symbol_name
-                    + " (ORDER_ID, WALLET_ID, OWNER, QUANTITY, SYMBOL, PRICE, OPEN_QUANTITY, FILL_COST, CREATED_AT, UPDATED_AT) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);",
+                    + " (ORDERID, WALLETID, OWNER, QUANTITY, SYMBOL, PRICE, OPENQUANTITY, FILLCOST, CREATEDAT, UPDATEDAT) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);",
                     insertion_order,
                 )
             except Exception as e:
@@ -269,7 +334,7 @@ class DBHelper:
                 cls.con.execute(
                     "UPDATE OPEN_BID_ORDERS_"
                     + symbol_name
-                    + "SET QUANTITY = %s, OPEN_QUANTITY = %s, FILL_COST = %s, UPDATED_AT = %s WHERE ORDER_ID = %s;",
+                    + "SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
@@ -280,7 +345,7 @@ class DBHelper:
                 cls.con.execute(
                     "UPDATE OPEN_ASK_ORDERS_"
                     + symbol_name
-                    + "SET OPEN_QUANTITY = %s, FILL_COST = %s, UPDATED_AT = %s WHERE ORDER_ID = %s;",
+                    + "SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
@@ -294,7 +359,7 @@ class DBHelper:
             cls.con.execute(
                 "INSERT INTO ORDER_FILLINGS_"
                 + symbol_name
-                + " (BUY_ORDER_ID, SELL_ORDER_ID, SYMBOL, PRICE, QUANTITY, TIME) VALUES(%s, %s, %s, %s, %s, %s);",
+                + " (BUYORDERID, SELLORDERID, SYMBOL, PRICE, QUANTITY, TIME) VALUES(%s, %s, %s, %s, %s, %s);",
                 insertion_order,
             )
 
@@ -373,7 +438,7 @@ class DBHelper:
     @classmethod
     def get_user_balance(cls, user_id):
         return pd.read_sql(
-            f"SELECT * FROM users where user_id = '{user_id}';",
+            f"SELECT * FROM users where userid = '{user_id}';",
             cls.con,
             coerce_float=False,
         ).balance.values[0]
@@ -381,7 +446,7 @@ class DBHelper:
     @classmethod
     def get_wallet_asset(cls, wallet_id, symbol):
         return pd.read_sql(
-            f"SELECT * FROM wallet_assets where (wallet_id = '{wallet_id}') and (symbol = '{symbol}');",
+            f"SELECT * FROM wallet_assets where (walletid = '{wallet_id}') and (symbol = '{symbol}');",
             cls.con,
             coerce_float=False,
         ).amount.values[0]
@@ -390,7 +455,7 @@ class DBHelper:
     def update_user_balance(cls, user_id, balance):
         try:
             cls.con.execute(
-                f"UPDATE users SET balance = {balance} WHERE user_id = '{user_id}';"
+                f"UPDATE users SET balance = {balance} WHERE userid = '{user_id}';"
             )
         except Exception as e:
             print(user_id, balance)
@@ -400,7 +465,7 @@ class DBHelper:
     def update_wallet_asset(cls, wallet_id, symbol, amount):
         try:
             cls.con.execute(
-                f"UPDATE wallet_assets SET amount = {amount} WHERE (wallet_id = '{wallet_id}') and (symbol = '{symbol}');"
+                f"UPDATE wallet_assets SET amount = {amount} WHERE (walletid = '{wallet_id}') and (symbol = '{symbol}');"
             )
         except Exception as e:
             print(wallet_id, symbol, amount)
@@ -439,7 +504,7 @@ class DBHelper:
                 + ("BID" if is_buy else "ASK")
                 + "_ORDERS_"
                 + symbol
-                + f" WHERE ORDER_ID = '{order_id}';"
+                + f" WHERE ORDERID = '{order_id}';"
             )
         except Exception as e:
             print(symbol, order_id)
@@ -449,8 +514,8 @@ class DBHelper:
             cls.con.execute(
                 "INSERT INTO CLOSED_ORDERS_"
                 + symbol
-                + "(ORDER_ID, WALLET_ID, OWNER, BUY_SIDE, QUANTITY, SYMBOL, PRICE, FILL_COST, FILL_PRICE, CREATED_AT, FILLED_AT)\
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s);",
+                + "(ORDERID, WALLETID, OWNER, BUYSIDE, QUANTITY, SYMBOL, PRICE, FILLCOST, FILLPRICE, CREATEDAT, FILLEDAT) "
+                + "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);",
                 insert_close_order,
             )
         except Exception as e:
