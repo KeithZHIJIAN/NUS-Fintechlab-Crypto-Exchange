@@ -446,7 +446,7 @@ class DBHelper:
     @classmethod
     def get_wallet_asset(cls, wallet_id, symbol):
         return pd.read_sql(
-            f"SELECT * FROM wallet_assets where (walletid = '{wallet_id}') and (symbol = '{symbol}');",
+            f"SELECT * FROM wallet_assets where (walletid = '{wallet_id}') and (symbol = '{symbol.lower()}');",
             cls.con,
             coerce_float=False,
         ).amount.values[0]

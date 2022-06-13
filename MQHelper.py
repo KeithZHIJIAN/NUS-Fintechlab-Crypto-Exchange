@@ -49,3 +49,19 @@ class MQHelper:
         cls.channel.basic_publish(
             exchange="NEW_BID_ORDER.DLQ.Exchange", routing_key="", body=""
         )
+    
+    # add ETHUSD limit ask 100 64000 user1 Alice1
+    @classmethod
+    def populate_open_orders(cls):
+        for price in range(50, 110, 10):
+            cls.channel.basic_publish(
+                exchange="", routing_key="exchange", body=f"add btcusd limit bid 1 {price} 1 1"
+            )
+        for price in range(110, 160, 10):
+            cls.channel.basic_publish(
+                exchange="", routing_key="exchange", body=f"add btcusd limit ask 1 {price} 3 3"
+            )
+        
+        cls.channel.basic_publish(
+            exchange="", routing_key="exchange", body="add btcusd limit ask 1 100 2 2"
+        )
