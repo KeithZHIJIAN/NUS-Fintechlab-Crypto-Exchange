@@ -334,7 +334,7 @@ class DBHelper:
                 cls.con.execute(
                     "UPDATE OPEN_BID_ORDERS_"
                     + symbol_name
-                    + "SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
+                    + " SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
@@ -345,7 +345,7 @@ class DBHelper:
                 cls.con.execute(
                     "UPDATE OPEN_ASK_ORDERS_"
                     + symbol_name
-                    + "SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
+                    + " SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
@@ -392,7 +392,7 @@ class DBHelper:
                     cls.con.execute(
                         "UPDATE MARKET_HISTORY_"
                         + symbol_name
-                        + "SET OPEN = %s, CLOSE = %s, HIGH = %s, LOW = %s VOLUME = %s VWAP = %s NUM_TRADES = %s WHERE TIME = %s;",
+                        + " SET OPEN = %s, CLOSE = %s, HIGH = %s, LOW = %s VOLUME = %s VWAP = %s NUM_TRADES = %s WHERE TIME = %s;",
                         market_update,
                     )
                 except Exception as e:
