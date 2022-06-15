@@ -39,15 +39,15 @@ class MQHelper:
         )
 
     @classmethod
-    def update_ask_order(cls):
+    def update_ask_order(cls, symbol):
         cls.channel.basic_publish(
-            exchange="NEW_ASK_ORDER.DLQ.Exchange", routing_key="", body=""
+            exchange="NEW_ASK_ORDER.DLQ.Exchange", routing_key="", body=f'{{"symbol":"{symbol}"}}'
         )
 
     @classmethod
-    def update_bid_order(cls):
+    def update_bid_order(cls, symbol):
         cls.channel.basic_publish(
-            exchange="NEW_BID_ORDER.DLQ.Exchange", routing_key="", body=""
+            exchange="NEW_BID_ORDER.DLQ.Exchange", routing_key="", body=f'{{"symbol":"{symbol}"}}'
         )
     
     # add ETHUSD limit ask 100 64000 user1 Alice1
