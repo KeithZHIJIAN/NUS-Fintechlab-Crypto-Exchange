@@ -117,9 +117,9 @@ class MatchingEngine(object):
 
         orderType = msg_list[2]
 
-        if msg_list[3].upper() == "BID":
+        if msg_list[3].upper() == "BID" or msg_list[3].upper() == "BUY":
             buy = True
-        elif msg_list[3].upper() == "ASK":
+        elif msg_list[3].upper() == "ASK" or msg_list[3].upper() == "SELL":
             buy = False
         else:
             print("--Invalid side.")
