@@ -5,6 +5,7 @@ from ordertracker import OrderTracker
 from decimal import Decimal
 from price import Price
 from DBHelper import DBHelper
+from MQHelper import MQHelper
 
 MAX_QUANTITY = 4294967295  # UINT32_MAX
 MARKET_ORDER_PRICE = 0
@@ -188,18 +189,6 @@ class OrderBook:
 
             curr = datetime.now().isoformat("T")
 
-            # order_id,
-            # wallet_id,
-            # user_id,
-            # is_buy,
-            # quantity,
-            # symbol,
-            # price,
-            # fill_cost,
-            # created_at,
-            # filled_at,
-
-
             # symbol_name, buy_order, sell_order, price, qty, time
             DBHelper.add_trade_record(
                 inbound_tracker.order().symbol(),
@@ -285,6 +274,8 @@ class OrderBook:
                     curr,
                 )
             
+            # MQHelper.add_order_filling(inbound_tracker.order().symbol(),cross_price, fill_qty)
+
             self.set_market_price(cross_price)
 
         # Add the trade to the trade history
@@ -397,31 +388,3 @@ class OrderBook:
                     return order_tracker
         print("--order not found")
         return None
-
-
-# ob = OrderBook("BTCUSD")
-# order1 = Order(
-#     "0001", "limit", True, 100, Decimal("64021.1"), "user1", "2020-01-01T00:00:00"
-# )
-# order2 = Order(
-#     "0002", "limit", True, 50, Decimal("64020.3"), "user1", "2020-01-01T00:00:00"
-# )
-
-# order3 = Order(
-#     "0003", "limit", False, 50, Decimal("64020.3"), "user1", "2020-01-01T00:00:00"
-# )
-# ob.add_order(order1)
-# ob.add_order(order2)
-# ob.add_order(order3)
-# ob.add_order(
-#     Order(
-#         "0004", "limit", True, 100, Decimal("64020.3"), "user1", "2020-01-01T00:00:00"
-#     )
-# )
-# ob.add_order(
-#     Order(
-#         "0005", "limit", True, 100, Decimal("64020.3"), "user1", "2020-01-01T00:00:00"
-#     )
-# )
-
-# print(ob)

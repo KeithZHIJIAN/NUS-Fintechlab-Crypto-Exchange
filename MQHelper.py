@@ -50,11 +50,11 @@ class MQHelper:
             exchange="NEW_BID_ORDER.DLQ.Exchange", routing_key="", body=f'{{"symbol":"{symbol}"}}'
         )
     
-    # @classmethod
-    # def update_order_filling(cls, symbol, price, quantity):
-    #     cls.channel.basic_publish(
-    #         exchange="NEW_ORDER_FILLED.DLQ.Exchange", routing_key="", body=f'{{"symbol":"{symbol}", "price":"{price}", "quantity":"{quantity}"}}'
-    #     )
+    @classmethod
+    def add_order_filling(cls, symbol, price, quantity):
+        cls.channel.basic_publish(
+            exchange="NEW_ORDER_FILLED.DLQ.Exchange", routing_key="", body=f'{{"symbol":"{symbol}", "price":"{price}", "quantity":"{quantity}"}}'
+        )
     
     # add ETHUSD limit ask 100 64000 user1 Alice1
     @classmethod

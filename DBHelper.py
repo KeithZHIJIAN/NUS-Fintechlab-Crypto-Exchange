@@ -523,10 +523,5 @@ class DBHelper:
             print(e)
 
     @classmethod
-    def intialise_and_populate_samples(cls, global_data_file = "GLOBAL_SAMPLE_DATA.txt", market_history_file = "BTC_MARKET_FAKE.txt"):
-        cls.init_database()
-        cls.add_symbol("btcusd")
-        cls.add_symbol("ethusd")
-        cls.add_symbol("xrpusd")
-        cls.execute_sql_script(global_data_file)
-        cls.execute_sql_script(market_history_file)
+    def intialise_and_populate_samples(cls, init_file = "ALL_SQL.txt"):
+        cls.execute_sql_script(init_file)
