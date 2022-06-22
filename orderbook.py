@@ -273,9 +273,6 @@ class OrderBook:
                     seller.order().creationTime(),
                     curr,
                 )
-            
-            # MQHelper.add_order_filling(inbound_tracker.order().symbol(),cross_price, fill_qty)
-
             self.set_market_price(cross_price)
 
         # Add the trade to the trade history
@@ -309,6 +306,7 @@ class OrderBook:
             matched = self.submit_order(inbound)
         while self._pendingTrackers:
             self.submit_pending_orders()
+        MQHelper.update_order(order.symbol())
         return matched
 
     def add_stop_order(self, orderTracker: OrderTracker) -> bool:
