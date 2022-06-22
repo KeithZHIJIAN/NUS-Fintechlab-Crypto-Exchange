@@ -523,5 +523,9 @@ class DBHelper:
             print(e)
 
     @classmethod
-    def intialise_and_populate_samples(cls, init_file = "ALL_SQL.txt"):
+    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "ALL_SQL.txt"):
+        cls.execute_sql_script(global_file)
+        cls.add_symbol("btcusd")
+        cls.add_symbol("ethusd")
+        cls.add_symbol("xrpusd")
         cls.execute_sql_script(init_file)

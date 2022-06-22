@@ -306,7 +306,6 @@ class OrderBook:
             matched = self.submit_order(inbound)
         while self._pendingTrackers:
             self.submit_pending_orders()
-        MQHelper.update_order(order.symbol())
         return matched
 
     def add_stop_order(self, orderTracker: OrderTracker) -> bool:
