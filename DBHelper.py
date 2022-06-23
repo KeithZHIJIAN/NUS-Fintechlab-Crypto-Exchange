@@ -7,6 +7,7 @@
 from decimal import Decimal
 import sqlalchemy
 import pandas as pd
+import datetime
 from dotenv import dotenv_values
 
 # # DB Creator
@@ -27,6 +28,13 @@ from dotenv import dotenv_values
 
 class DBHelper:
     url = dotenv_values(".env")["url"]
+#     user = 'nus'
+#     password = '12345678'
+#     host = 'localhost'
+#     port = 5432
+#     database = 'nustesting'
+#     url = "postgresql+psycopg2://{0}:{1}@{2}:{3}/{4}".format(user, password, host, port, database)
+    
     engine = sqlalchemy.create_engine(url, echo=False)
     con = engine.connect()
     GLOBAL_TABLES_CREATION_SCRIPT = "CREATE_GLOBAL_TABLES.txt"
@@ -392,7 +400,9 @@ class DBHelper:
                     cls.con.execute(
                         "UPDATE MARKET_HISTORY_"
                         + symbol_name
-                        + " SET OPEN = %s, CLOSE = %s, HIGH = %s, LOW = %s VOLUME = %s VWAP = %s NUM_TRADES = %s WHERE TIME = %s;",
+                        + " SET OPEN = %s, CLOSE = %s, HIGH = %s, "
+                        + "LOW = %s, VOLUME = %s, VWAP = %s, NUM_TRADES = %s "
+                        + "WHERE TIME = %s;",
                         market_update,
                     )
                 except Exception as e:
@@ -523,7 +533,7 @@ class DBHelper:
             print(e)
 
     @classmethod
-    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "ALL_SQL.txt"):
+    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "sample_data.txt"):
         cls.execute_sql_script(global_file)
         cls.add_symbol("btcusd")
         cls.add_symbol("ethusd")
