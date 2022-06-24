@@ -392,7 +392,9 @@ class DBHelper:
                     cls.con.execute(
                         "UPDATE MARKET_HISTORY_"
                         + symbol_name
-                        + " SET OPEN = %s, CLOSE = %s, HIGH = %s, LOW = %s VOLUME = %s VWAP = %s NUM_TRADES = %s WHERE TIME = %s;",
+                        + " SET OPEN = %s, CLOSE = %s, HIGH = %s, "
+                        + "LOW = %s, VOLUME = %s, VWAP = %s, NUM_TRADES = %s "
+                        + "WHERE TIME = %s;",
                         market_update,
                     )
                 except Exception as e:
@@ -465,7 +467,7 @@ class DBHelper:
     def update_wallet_asset(cls, wallet_id, symbol, amount):
         try:
             cls.con.execute(
-                f"UPDATE wallet_assets SET amount = {amount} WHERE (walletid = '{wallet_id}') and (symbol = '{symbol}');"
+                f"UPDATE wallet_assets SET amount = {amount} WHERE (walletid = '{wallet_id}') and (symbol = '{symbol.lower()}');"
             )
         except Exception as e:
             print(wallet_id, symbol, amount)
@@ -494,7 +496,7 @@ class DBHelper:
             symbol,
             price,
             fill_cost,
-            fill_cost / price,
+            fill_cost / quantity,
             created_at,
             filled_at,
         )
@@ -523,7 +525,7 @@ class DBHelper:
             print(e)
 
     @classmethod
-    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "ALL_SQL.txt"):
+    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "sample_data.txt"):
         cls.execute_sql_script(global_file)
         cls.add_symbol("btcusd")
         cls.add_symbol("ethusd")
