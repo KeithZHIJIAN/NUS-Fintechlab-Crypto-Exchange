@@ -5,7 +5,6 @@ from ordertracker import OrderTracker
 from decimal import Decimal
 from price import Price
 from DBHelper import DBHelper
-from MQHelper import MQHelper
 
 MAX_QUANTITY = 4294967295  # UINT32_MAX
 MARKET_ORDER_PRICE = 0
