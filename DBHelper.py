@@ -373,6 +373,10 @@ class DBHelper:
 
             # cur_time = datetime.datetime.now().isoformat("T")[:16]
             cur_time = time[:16]  # Assuming time is datetime.isoformat('T')
+            
+            if symbol_name not in cls.old_time:
+                cls.old_time[symbol_name] = ""
+                
             if cur_time == cls.old_time[symbol_name]:
                 cls.cur_market[symbol_name]["num_trades"] += 1
                 cls.cur_market[symbol_name]["close"] = price
