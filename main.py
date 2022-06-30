@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-from matchingengine import MatchingEngine
-from MQHelper import MQHelper
+from src.matchingengine import MatchingEngine
+from utils.MQHelper import MQHelper
 
 import sys, os
 

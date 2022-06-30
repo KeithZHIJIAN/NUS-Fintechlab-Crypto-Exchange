@@ -512,7 +512,7 @@ class DBHelper:
             print(e)
 
     @classmethod
-    def intialise_and_populate_samples(cls, global_file = "CREATE_GLOBAL_TABLES.txt", init_file = "sample_data.txt"):
+    def intialise_and_populate_samples(cls, global_file = "./utils/CREATE_GLOBAL_TABLES.txt", init_file = "./utils/sample_data.txt"):
         cls.execute_sql_script(global_file)
         cls.add_symbol("btcusd")
         cls.add_symbol("ethusd")

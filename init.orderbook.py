@@ -1,4 +1,4 @@
-from MQHelper import MQHelper
+from utils.MQHelper import MQHelper
 
 MQHelper.populate_open_orders()
 print("ORDERBOOK POPULATION DONE")

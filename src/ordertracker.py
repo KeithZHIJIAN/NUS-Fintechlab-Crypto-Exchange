@@ -1,6 +1,6 @@
-from decimal import Decimal
-from order import Order
+from src.order import Order
 
+from decimal import Decimal
 
 class OrderTracker:
     def __init__(self, order: Order) -> None:

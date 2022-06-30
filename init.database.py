@@ -1,4 +1,4 @@
-from DBHelper import DBHelper
+from utils.DBHelper import DBHelper
 
 DBHelper.drop_all()
 print("DROPPED")

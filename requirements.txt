@@ -2,3 +2,4 @@ sqlalchemy
 pandas
 pika
 sortedcontainers
+python-dotenv
