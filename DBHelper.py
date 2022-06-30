@@ -28,35 +28,11 @@ from dotenv import dotenv_values
 
 class DBHelper:
     url = dotenv_values(".env")["url"]
-#     user = 'nus'
-#     password = '12345678'
-#     host = 'localhost'
-#     port = 5432
-#     database = 'nustesting'
-#     url = "postgresql+psycopg2://{0}:{1}@{2}:{3}/{4}".format(user, password, host, port, database)
     
     engine = sqlalchemy.create_engine(url, echo=False)
     con = engine.connect()
-    GLOBAL_TABLES_CREATION_SCRIPT = "CREATE_GLOBAL_TABLES.txt"
     old_time = {}
     cur_market = {}
-
-    @classmethod
-    def init_database(cls):
-        symbol_exist = cls.check_table_existence("symbol")
-        users_exist = cls.check_table_existence("users")
-        wallet_exist = cls.check_table_existence("wallet")
-        wallet_assets_exist = cls.check_table_existence("wallet_assets")
-
-        if symbol_exist and users_exist and wallet_exist and wallet_assets_exist:
-            inspector = sqlalchemy.inspect(cls.engine)
-            table_names = inspector.get_table_names()
-            print("THESE GLOBAL TABLES ALREADY EXIST")
-            print(table_names)
-        else:
-            cls.execute_sql_script(cls.GLOBAL_TABLES_CREATION_SCRIPT)
-            print("CREATED GLOBAL TABLES")
-            print("ALL TABLES : ", sqlalchemy.inspect(cls.engine).get_table_names())
 
     @classmethod
     def execute_sql_script(cls, filepath):
