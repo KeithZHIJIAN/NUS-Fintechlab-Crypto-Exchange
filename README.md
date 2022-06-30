@@ -1,5 +1,8 @@
 # nce-matchingengine
 
+### Install dependency
+* ```pip install -r requirements.txt```
+
 ### Setup Process
 * ```python3 init.database.py```
 * ```python3 main.py```
