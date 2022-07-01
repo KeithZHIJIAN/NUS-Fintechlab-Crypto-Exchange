@@ -1,10 +1,6 @@
 from src.orderbook import OrderBook
-from src.order import Order
 
 from decimal import Decimal
-from datetime import datetime
-import uuid
-
 
 class MatchingEngine(object):
     __instance = None
@@ -35,44 +31,6 @@ class MatchingEngine(object):
         self._orderBooks = dict()
         MatchingEngine.__instance = self
 
-    def assemble_order(
-        self,
-        symbol: str,
-        orderType: str,
-        buy: bool,
-        quantity: int,
-        price: Decimal,
-        stopPrice: Decimal,
-        ownerId: str,
-        walletId: str,
-    ):
-        """
-        Assemble an order.
-        Args:
-            orderType (str): Type of order.
-            buy (bool): True if buy order, False if sell order.
-            quantity (int): Quantity of order.
-            price (Decimal): Price of order.
-            ownerId (str): Id of owner of order.
-        Returns:
-            Order: Order object.
-        """
-        curr = datetime.now().isoformat("T")
-
-        return Order(
-            str(uuid.uuid4()),
-            symbol,
-            orderType,
-            buy,
-            quantity,
-            price,
-            stopPrice,
-            ownerId,
-            walletId,
-            curr,
-            curr,
-        )
-
     def apply(self, msg):
         """
         Parse a message into a dictionary of order, and apply it to the order book.
@@ -90,17 +48,23 @@ class MatchingEngine(object):
         # if msg_list[0] == "MODIFY":
         #     self.doModify(msg_list)
 
-        # if msg_list[0] == "modify":
-        #     order = {
-        #         "type": msg_list[3],
-        #         "side": msg_list[4],
-        #         "quantity": Decimal(msg_list[5]),
-        #         "price": Decimal(msg_list[6]),
-        #         "trade_id": int(msg_list[7]),
-        #     }
-        #     orderbook = self._order_books[msg_list[1]]
-        #     orderbook.modify_order(int(msg_list[2]), order)
-        #     print(orderbook)
+
+        # orderId: str,
+        # symbol: str,
+        # orderType: str,
+        # buy: bool,
+        # quantity: Decimal,
+        # price: Decimal,
+        # stopPrice: Decimal,
+        # ownerId: str,
+        # walletId: str,
+        # creationTime: str,
+        # lastModTime: str,  # timestamp of order last modification
+
+        # Modify, Symbol, Order ID, Quantity, Price
+        if msg_list[0].upper() == "MODIFY":
+            self.doModify(msg_list)
+
 
     def doAdd(self, msg_list):
         """
@@ -143,12 +107,7 @@ class MatchingEngine(object):
 
         stopPrice = Decimal(msg_list[8]) if len(msg_list) > 8 else Decimal(0)
 
-        order = self.assemble_order(
-            symbol, orderType, buy, quantity, price, stopPrice, ownerId, walletId
-        )
-
-        # self._orders[order.orderId()] = order
-        orderbook.add(order)
+        orderbook.add(symbol, orderType, buy, quantity, price, stopPrice, ownerId, walletId)
 
         print(orderbook)
 
@@ -170,10 +129,10 @@ class MatchingEngine(object):
 
     # def doModify(self, msg_list):
     #     """
-    #     -   Modify, Symbol, Order ID, Quantity, Price
-    #         modify ETHUSD 0000000002 0 64000 //change price to 64000 only
-    #         modify ethusd 0000000002 100 0 //change quantity to 100 only
-    #         modify ethusd 0000000002 100 64000 //change quantity to 100 and price to 64000
+    #     -   Modify, Symbol, Side, Order ID, Quantity, Price
+    #         modify ETHUSD buy 0000000002 0 64000 //change price to 64000 only
+    #         modify ethusd buy 0000000002 100 0 //change quantity to 100 only
+    #         modify ethusd buy 0000000002 100 64000 //change quantity to 100 and price to 64000
     #     """
 
     #     symbol = msg_list[1]
@@ -183,25 +142,25 @@ class MatchingEngine(object):
     #         return
     #     orderbook = self._orderBooks[symbol]
 
-    #     orderId = msg_list[2]
-    #     if orderId in self._orders:
-    #         order = self._orders[orderId]
-    #     else:
-    #         print("--Invalid order id")
-    #         return
+    #     isBuy = msg_list[2].upper() == "BID" or msg_list[2].upper() == "BUY"
 
-    #     quantity = int(msg_list[3])
+    #     orderId = msg_list[3]
+
+    #     orderbook.find(isBuy, orderId)
+
+
+    #     quantity = int(msg_list[4])
 
     #     if quantity > 1000000000:
     #         print("--Invalid quantity")
     #         return False
 
-    #     price = Decimal(msg_list[4])
+    #     price = Decimal(msg_list[5])
     #     if price > 1000000000:
     #         print("--Invalid price")
     #         return
     #     orderbook.replace(
-    #         order, quantity, price, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #         order, quantity, price
     #     )
 
     #     print(orderbook)

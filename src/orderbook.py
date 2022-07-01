@@ -7,7 +7,7 @@ from utils.DBHelper import DBHelper
 
 from datetime import datetime
 from decimal import Decimal
-
+import uuid
 
 MAX_QUANTITY = 4294967295  # UINT32_MAX
 MARKET_ORDER_PRICE = 0
@@ -283,7 +283,22 @@ class OrderBook:
     def __str__(self) -> str:
         return f"symbol:{self._symbol}\nasks:\n{self._stopAsks}\n{self._asks}\nbids:\n{self._stopBids}\n{self._bids}\n"
 
-    def add(self, order: Order) -> bool:
+    def add(self, symbol, orderType, buy, quantity, price, stopPrice, ownerId, walletId) -> bool:
+        curr = datetime.now().isoformat("T")
+        order = Order(
+            str(uuid.uuid4()),
+            symbol,
+            orderType,
+            buy,
+            quantity,
+            price,
+            stopPrice,
+            ownerId,
+            walletId,
+            curr,
+            curr,
+        )
+
         matched = False
         inbound = OrderTracker(order)
         # order_id,
@@ -387,3 +402,10 @@ class OrderBook:
                     return order_tracker
         print("--order not found")
         return None
+    
+    # def find(self, isBuy: bool, orderId: str) -> Order:
+    #     openOrders = self._bids if isBuy else self._asks
+    #     for price in openOrders.keys():
+    #         for order_tracker in openOrders.get(price):
+    #             if order_tracker.orderId() == orderId:
+    #                 return order_tracker.order()
