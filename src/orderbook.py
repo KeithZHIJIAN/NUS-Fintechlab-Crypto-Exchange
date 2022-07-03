@@ -1,3 +1,4 @@
+from unicodedata import decimal
 from src.multimap import MultiMap
 from src.order import Order
 from src.ordertracker import OrderTracker
@@ -118,27 +119,30 @@ class OrderBook:
     ) -> bool:
         matched = False
         filled_list = []
-        for price, order_list in current_orders:
-            if not price.matches(inbound_price):
-                break
-            current_price = price.price()
-            # current_price: Decimal, current_order: OrderTracker
-            for current_order in order_list:
-                # reserved for all or none logic
-                if False:
-                    pass
-                else:
-                    cross_price, traded = self.create_trade(
-                        inbound, current_order, inbound_price, current_price
-                    )
-                    if traded:
-                        matched = True
-                        match_history.append((current_order, cross_price, traded))
-                        if current_order.filled():
-                            filled_list.append((current_price, current_order))
-                        if inbound.filled():
-                            filled_list.append((inbound_price, inbound))
-                            break
+        if inbound.filled():
+            filled_list = [(inbound_price, inbound)]
+        else:
+            for price, order_list in current_orders:
+                if not price.matches(inbound_price):
+                    break
+                current_price = price.price()
+                # current_price: Decimal, current_order: OrderTracker
+                for current_order in order_list:
+                    # reserved for all or none logic
+                    if False:
+                        pass
+                    else:
+                        cross_price, traded = self.create_trade(
+                            inbound, current_order, inbound_price, current_price
+                        )
+                        if traded:
+                            matched = True
+                            match_history.append((current_order, cross_price, traded))
+                            if current_order.filled():
+                                filled_list.append((current_price, current_order))
+                            if inbound.filled():
+                                filled_list.append((inbound_price, inbound))
+                                break
         curr = datetime.now().isoformat("T")
         for (current_price, current_order) in filled_list:
             current_orders.remove(current_price, current_order)
@@ -216,6 +220,7 @@ class OrderBook:
                 current_tracker.order().symbol(),
                 "BUY" if current_tracker.order().isBuy() else "SELL",
                 current_tracker.orderId(),
+                current_tracker.order().price(),
                 current_tracker.order().quantity(),
                 current_tracker.openQuantity(),
                 current_tracker.fillCost(),
@@ -226,6 +231,7 @@ class OrderBook:
                 inbound_tracker.order().symbol(),
                 "BUY" if inbound_tracker.order().isBuy() else "SELL",
                 inbound_tracker.orderId(),
+                inbound_tracker.order().price(),
                 inbound_tracker.order().quantity(),
                 inbound_tracker.openQuantity(),
                 inbound_tracker.fillCost(),
@@ -321,75 +327,127 @@ class OrderBook:
                 self._stopAsks.add(key, orderTracker)
         return isStopped
 
-    def cancel(self, order: Order) -> bool:
-        found = False
-        order_map = self._bids if order.isBuy() else self._asks
-        key = Price(order.price(), order.isBuy())
-        tracker = self.find_on_market(order, order_map)
-        if tracker:
-            order_map.remove(key, tracker)
-            found = True
-        if not found:
-            order_map = self._stopBids if order.isBuy() else self._stopAsks
-            tracker = self.find_on_market(order, order_map)
-            if tracker:
-                order_map.remove(key, tracker)
-                found = True
+    # def cancel(self, order: Order) -> bool:
+    #     found = False
+    #     order_map = self._bids if order.isBuy() else self._asks
+    #     key = Price(order.price(), order.isBuy())
+    #     tracker = self.find_on_market(order, order_map)
+    #     if tracker:
+    #         order_map.remove(key, tracker)
+    #         found = True
+    #     if not found:
+    #         order_map = self._stopBids if order.isBuy() else self._stopAsks
+    #         tracker = self.find_on_market(order, order_map)
+    #         if tracker:
+    #             order_map.remove(key, tracker)
+    #             found = True
 
-    def replace(
-        self, order: Order, size_delta: int, new_price: Decimal, time: str
-    ) -> bool:
-        matched = False
+    # def replace(
+    #     self, order: Order, size_delta: int, new_price: Decimal, time: str
+    # ) -> bool:
+    #     matched = False
 
-        market = self._bids if order.isBuy() else self._asks
-        tracker = self.find_on_market(order, market)
+    #     market = self._bids if order.isBuy() else self._asks
+    #     tracker = self.find_on_market(order, market)
 
-        old_price = order.price()
+    #     old_price = order.price()
 
-        price_change = new_price and new_price != order.price()
+    #     price_change = new_price and new_price != order.price()
 
-        if price_change:
-            if order.orderType() == "LIMIT":
-                price = new_price
-                order.modify_price(new_price, time)
-            elif order.orderType() == "MARKET":
-                print("Cannot change market order price")
-                return
-        else:
-            price = order.price()
+    #     if price_change:
+    #         if order.orderType() == "LIMIT":
+    #             price = new_price
+    #             order.modify_price(new_price, time)
+    #         elif order.orderType() == "MARKET":
+    #             print("Cannot change market order price")
+    #             return
+    #     else:
+    #         price = order.price()
 
-        if tracker:
-            if size_delta < 0 and tracker.openQuantity() + size_delta < 0:
-                size_delta = -tracker.openQuantity()
-                if size_delta == 0:
-                    print("--order is already filled")
-                    return
-            new_open_quantity = tracker.openQuantity() + size_delta
-            tracker.change_qty(size_delta)
-            order.modify_quantity(order.quantity() + size_delta, time)
+    #     if tracker:
+    #         if size_delta < 0 and tracker.openQuantity() + size_delta < 0:
+    #             size_delta = -tracker.openQuantity()
+    #             if size_delta == 0:
+    #                 print("--order is already filled")
+    #                 return
+    #         new_open_quantity = tracker.openQuantity() + size_delta
+    #         tracker.change_qty(size_delta)
+    #         order.modify_quantity(order.quantity() + size_delta, time)
 
-            market.remove(Price(old_price, order.isBuy()), tracker)
-            if new_open_quantity:
-                matched = self.add_order(tracker, price)
+    #         market.remove(Price(old_price, order.isBuy()), tracker)
+    #         if new_open_quantity:
+    #             matched = self.add_order(tracker, price)
 
-            while self._pendingTrackers:
-                self.submit_pending_orders()
-        else:
-            print("--order not found")
-        return matched
+    #         while self._pendingTrackers:
+    #             self.submit_pending_orders()
+    #     else:
+    #         print("--order not found")
+    #     return matched
 
-    def find_on_market(self, order: Order, order_map: MultiMap) -> OrderTracker:
-        price_list = order_map.get(Price(order.price(), order.isBuy()))
+    # def find_on_market(self, order: Order, order_map: MultiMap) -> OrderTracker:
+    #     price_list = order_map.get(Price(order.price(), order.isBuy()))
+    #     if price_list:
+    #         for order_tracker in price_list:
+    #             if order_tracker.orderId() == order.orderId():
+    #                 return order_tracker
+    #     print("--order not found")
+    #     return None
+
+    def find(self, isBuy:bool, price:Decimal, orderId:str) -> OrderTracker:
+        market = self._bids if isBuy else self._asks
+        price_list = market.get(Price(price, isBuy))
         if price_list:
             for order_tracker in price_list:
-                if order_tracker.orderId() == order.orderId():
+                if order_tracker.orderId() == orderId:
                     return order_tracker
         print("--order not found")
         return None
-    
-    # def find(self, isBuy: bool, orderId: str) -> Order:
-    #     openOrders = self._bids if isBuy else self._asks
-    #     for price in openOrders.keys():
-    #         for order_tracker in openOrders.get(price):
-    #             if order_tracker.orderId() == orderId:
-    #                 return order_tracker.order()
+
+    def replace(
+            self, orderId, isBuy, prevQuantity, prevPrice, newQuantity, newPrice
+        ) -> bool:
+            matched = False
+            time = datetime.now().isoformat("T")
+
+            market = self._bids if isBuy else self._asks
+            tracker = self.find(isBuy, prevPrice, orderId)
+
+            if tracker:
+                order = tracker.order()
+                price = prevPrice
+                if prevPrice != newPrice:
+                    if order.orderType().upper() == "LIMIT":
+                        price = newPrice
+                        order.modify_price(newPrice, time)
+                    elif order.orderType().upper() == "MARKET":
+                        print("Cannot change market order price")
+                        return
+
+
+                size_delta = newQuantity - prevQuantity
+                # if the reduction in quantity is greater than the open quantity, we need to cancel the order
+                if size_delta < 0 and tracker.openQuantity() + size_delta < 0:
+                    size_delta = -tracker.openQuantity()
+
+                tracker.change_qty(size_delta)
+                order.modify_quantity(order.quantity() + size_delta, time)
+
+                market.remove(Price(prevPrice, isBuy), tracker)
+                # add order even if the new quantity is 0
+                DBHelper.update_order(
+                    order.symbol(),
+                    "BUY" if isBuy else "SELL",
+                    orderId,
+                    newPrice,
+                    newQuantity,
+                    tracker.openQuantity(),
+                    tracker.fillCost(),
+                    time,
+                )
+                matched = self.add_order(tracker, price)
+
+                while self._pendingTrackers:
+                    self.submit_pending_orders()
+            else:
+                print("--order not found")
+            return matched

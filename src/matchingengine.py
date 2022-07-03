@@ -91,12 +91,12 @@ class MatchingEngine(object):
             # Send error msg back to front end
             return False
 
-        quantity = Decimal(msg_list[4])
+        quantity = round(Decimal(msg_list[4]),3)
         if quantity == 0 or quantity > 1000000000:
             print("--Invalid quantity")
             return False
 
-        price = Decimal(0) if orderType.upper() == "MARKET" else Decimal(msg_list[5])
+        price = Decimal(0) if orderType.upper() == "MARKET" else round(Decimal(msg_list[5]),3)
         if price > 1000000000:
             print("--Invalid price")
             return False
@@ -105,7 +105,7 @@ class MatchingEngine(object):
 
         walletId = msg_list[7]
 
-        stopPrice = Decimal(msg_list[8]) if len(msg_list) > 8 else Decimal(0)
+        stopPrice = round(Decimal(msg_list[8]),3) if len(msg_list) > 8 else Decimal(0)
 
         orderbook.add(symbol, orderType, buy, quantity, price, stopPrice, ownerId, walletId)
 
@@ -127,26 +127,32 @@ class MatchingEngine(object):
     #         orderbook.cancel(order)
     #         print(orderbook)
 
-    # def doModify(self, msg_list):
-    #     """
-    #     -   Modify, Symbol, Side, Order ID, Quantity, Price
-    #         modify ETHUSD buy 0000000002 0 64000 //change price to 64000 only
-    #         modify ethusd buy 0000000002 100 0 //change quantity to 100 only
-    #         modify ethusd buy 0000000002 100 64000 //change quantity to 100 and price to 64000
-    #     """
+    def doModify(self, msg_list):
+        """
+        -   Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
+            modify ETHUSD buy 0000000002 100 63000 100 64000 //change price to 64000 only
+        """
 
-    #     symbol = msg_list[1]
+        symbol = msg_list[1].upper()
 
-    #     if symbol not in self._orderBooks:
-    #         print("--Invalid symbol")
-    #         return
-    #     orderbook = self._orderBooks[symbol]
+        if symbol not in self._orderBooks:
+            print("--Invalid symbol")
+            return
+        orderbook = self._orderBooks[symbol]
 
-    #     isBuy = msg_list[2].upper() == "BID" or msg_list[2].upper() == "BUY"
+        isBuy = msg_list[2].upper() == "BID" or msg_list[2].upper() == "BUY"
 
-    #     orderId = msg_list[3]
+        orderId = msg_list[3]
 
-    #     orderbook.find(isBuy, orderId)
+
+        prevQuantity = round(Decimal(msg_list[4]),3)
+        prevPrice = round(Decimal(msg_list[5]),3)
+        newQuantity = round(Decimal(msg_list[6]),3)
+        newPrice = round(Decimal(msg_list[7]),3)
+
+        orderbook.replace(orderId, isBuy, prevQuantity, prevPrice, newQuantity, newPrice)
+
+        print(orderbook)
 
 
     #     quantity = int(msg_list[4])

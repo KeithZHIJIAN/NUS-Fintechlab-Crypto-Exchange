@@ -309,15 +309,15 @@ class DBHelper:
 
     @classmethod
     def update_order(
-        cls, symbol_name, action, order_id, qty, open_qty, fill_cost, time
+        cls, symbol_name, action, order_id, price, qty, open_qty, fill_cost, time
     ):
-        insertion_order = (qty, open_qty, fill_cost, time, order_id)
+        insertion_order = (price, qty, open_qty, fill_cost, time, order_id)
         if action.lower() == "buy":
             try:
                 cls.con.execute(
                     "UPDATE OPEN_BID_ORDERS_"
                     + symbol_name
-                    + " SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
+                    + " SET PRICE = %s, QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
@@ -328,7 +328,7 @@ class DBHelper:
                 cls.con.execute(
                     "UPDATE OPEN_ASK_ORDERS_"
                     + symbol_name
-                    + " SET QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
+                    + " SET PRICE = %s, QUANTITY = %s, OPENQUANTITY = %s, FILLCOST = %s, UPDATEDAT = %s WHERE ORDERID = %s;",
                     insertion_order,
                 )
             except Exception as e:
