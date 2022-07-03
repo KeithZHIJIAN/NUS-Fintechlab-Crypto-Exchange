@@ -483,7 +483,7 @@ class DBHelper:
             symbol,
             price,
             fill_cost,
-            fill_cost / quantity,
+            fill_cost / quantity if quantity else 0,
             created_at,
             filled_at,
         )
