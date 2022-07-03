@@ -23,7 +23,6 @@ class OrderBook:
         self._stopBids = MultiMap()
         self._pendingTrackers = []
         self._marketPrice = Decimal(0)
-        # DBHelper.add_symbol(symbol)
 
     def marketPrice(self) -> Decimal:
         return self._marketPrice
@@ -119,15 +118,12 @@ class OrderBook:
     ) -> bool:
         matched = False
         filled_list = []
-        openQuantity = inbound.openQuantity()
         for price, order_list in current_orders:
             if not price.matches(inbound_price):
                 break
             current_price = price.price()
             # current_price: Decimal, current_order: OrderTracker
             for current_order in order_list:
-                if inbound.filled():
-                    break
                 # reserved for all or none logic
                 if False:
                     pass
@@ -140,9 +136,24 @@ class OrderBook:
                         match_history.append((current_order, cross_price, traded))
                         if current_order.filled():
                             filled_list.append((current_price, current_order))
-                        openQuantity -= traded
+                        if inbound.filled():
+                            filled_list.append((inbound_price, inbound))
+                            break
+        curr = datetime.now().isoformat("T")
         for (current_price, current_order) in filled_list:
             current_orders.remove(current_price, current_order)
+            DBHelper.close_order(
+                    current_order.orderId(),
+                    current_order.order().walletId(),
+                    current_order.order().ownerId(),
+                    current_order.order().isBuy(),
+                    current_order.order().quantity(),
+                    current_order.order().symbol(),
+                    current_order.order().price(),
+                    current_order.fillCost(),
+                    current_order.order().creationTime(),
+                    curr,
+            )
         return matched
 
     def create_trade(
@@ -248,33 +259,6 @@ class OrderBook:
                 - fill_qty,
             )
 
-            if buyer.filled():
-                DBHelper.close_order(
-                    buyer.orderId(),
-                    buyer.order().walletId(),
-                    buyer.order().ownerId(),
-                    buyer.order().isBuy(),
-                    buyer.order().quantity(),
-                    buyer.order().symbol(),
-                    buyer.order().price(),
-                    buyer.fillCost(),
-                    buyer.order().creationTime(),
-                    curr,
-                )
-
-            if seller.filled():
-                DBHelper.close_order(
-                    seller.orderId(),
-                    seller.order().walletId(),
-                    seller.order().ownerId(),
-                    seller.order().isBuy(),
-                    seller.order().quantity(),
-                    seller.order().symbol(),
-                    seller.order().price(),
-                    seller.fillCost(),
-                    seller.order().creationTime(),
-                    curr,
-                )
             self.set_market_price(cross_price)
 
         # Add the trade to the trade history
