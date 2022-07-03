@@ -7,7 +7,7 @@ from utils.DBHelper import DBHelper
 
 from datetime import datetime
 from decimal import Decimal
-import uuid
+from uuid import uuid4
 
 MAX_QUANTITY = 4294967295  # UINT32_MAX
 MARKET_ORDER_PRICE = 0
@@ -286,7 +286,7 @@ class OrderBook:
     def add(self, symbol, orderType, buy, quantity, price, stopPrice, ownerId, walletId) -> bool:
         curr = datetime.now().isoformat("T")
         order = Order(
-            str(uuid.uuid4()),
+            str(uuid4()),
             symbol,
             orderType,
             buy,
