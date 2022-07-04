@@ -12,14 +12,14 @@ Message format:
     add ethusd market ask 100 0 user1 Alice1 (60000)
     
 
--   Modify, Symbol, Order ID, Quantity, Price
-    modify ETHUSD 0000000002 0 64000 //change price to 64000 only
-    modify ethusd 0000000002 100 0 //change quantity to 100 only
-    modify ethusd 0000000002 100 64000 //change quantity to 100 and price to 64000
+
+-   Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
+    modify ETHUSD buy 0000000002 100 63000 100 64000 //change price to 64000 only
 
 
--   Cancel, Symbol, Order ID
-    cancel ETHUSD 0000000001
+
+-   Cancel, Symbol, Side, Price, Order ID
+    cancel ETHUSD buy 100 0000000001
 """
 
 # The front end will send valid order msg to the matching engine

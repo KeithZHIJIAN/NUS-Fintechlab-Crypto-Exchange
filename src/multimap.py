@@ -48,7 +48,8 @@ class MultiMap:
         Need to find the original order tracker first and then remove it
         """
         if price in self.d:
-            self.d[price].remove(orderTracker)
+            if orderTracker in self.d[price]:
+                self.d[price].remove(orderTracker)
             if len(self.d[price]) == 0:
                 self.d.pop(price)
 

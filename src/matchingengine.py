@@ -64,7 +64,8 @@ class MatchingEngine(object):
         # Modify, Symbol, Order ID, Quantity, Price
         if msg_list[0].upper() == "MODIFY":
             self.doModify(msg_list)
-
+        if msg_list[0].upper() == "CANCEL":
+            self.doCancel(msg_list)
 
     def doAdd(self, msg_list):
         """
@@ -111,22 +112,6 @@ class MatchingEngine(object):
 
         print(orderbook)
 
-    # def doCancel(self, msg_list):
-
-    #     symbol = msg_list[1]
-
-    #     if symbol not in self._orderBooks:
-    #         print("--Invalid symbol")
-    #         return
-
-    #     orderbook = self._orderBooks[symbol]
-
-    #     orderId = msg_list[2]
-    #     if orderId in self._orders:
-    #         order = self._orders.pop(orderId)
-    #         orderbook.cancel(order)
-    #         print(orderbook)
-
     def doModify(self, msg_list):
         """
         -   Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
@@ -154,6 +139,27 @@ class MatchingEngine(object):
 
         print(orderbook)
 
+    def doCancel(self, msg_list):
+        """
+        -   Cancel, Symbol, Side, Order ID, Price
+            cancel ETHUSD buy 0000000001 100
+        """
+        symbol = msg_list[1].upper()
+
+        if symbol not in self._orderBooks:
+            print("--Invalid symbol")
+            return
+
+        orderbook = self._orderBooks[symbol]
+
+        isBuy = msg_list[2].upper() == "BID" or msg_list[2].upper() == "BUY"
+
+        orderId = msg_list[3]
+
+        price = round(Decimal(msg_list[4]),3)
+
+        orderbook.cancel(isBuy, price, orderId)
+        print(orderbook)
 
     #     quantity = int(msg_list[4])
 

@@ -87,11 +87,22 @@ class OrderBook:
             print(f"order {inbound.orderId()} filled {fill_qty} @ {cross_price}")
             # reserved for database update
 
-        if not inbound.filled():
-            if buy:
-                self._bids.add(Price(inbound_price, buy), inbound)
-            else:
-                self._asks.add(Price(inbound_price, buy), inbound)
+        inbound_list = self._bids if buy else self._asks
+        if inbound.filled():
+            inbound_list.remove(inbound_price, inbound)
+            DBHelper.close_order(inbound.orderId(),
+                    order.walletId(),
+                    order.ownerId(),
+                    buy,
+                    order.quantity(),
+                    order.symbol(),
+                    order.price(),
+                    inbound.fillCost(),
+                    order.creationTime(),
+                    datetime.now().isoformat("T"))
+        else:
+            inbound_list.add(Price(inbound_price, buy), inbound)
+        
         return matched, match_history
 
     #  Try to match order at 'price' against 'current' orders
@@ -119,30 +130,25 @@ class OrderBook:
     ) -> bool:
         matched = False
         filled_list = []
-        if inbound.filled():
-            filled_list = [(inbound_price, inbound)]
-        else:
-            for price, order_list in current_orders:
-                if not price.matches(inbound_price):
-                    break
-                current_price = price.price()
-                # current_price: Decimal, current_order: OrderTracker
-                for current_order in order_list:
-                    # reserved for all or none logic
-                    if False:
-                        pass
-                    else:
-                        cross_price, traded = self.create_trade(
-                            inbound, current_order, inbound_price, current_price
-                        )
-                        if traded:
-                            matched = True
-                            match_history.append((current_order, cross_price, traded))
-                            if current_order.filled():
-                                filled_list.append((current_price, current_order))
-                            if inbound.filled():
-                                filled_list.append((inbound_price, inbound))
-                                break
+
+        for price, order_list in current_orders:
+            if not price.matches(inbound_price):
+                break
+            current_price = price.price()
+            # current_price: Decimal, current_order: OrderTracker
+            for current_order in order_list:
+                # reserved for all or none logic
+                if False:
+                    pass
+                else:
+                    cross_price, traded = self.create_trade(
+                        inbound, current_order, inbound_price, current_price
+                    )
+                    if traded:
+                        matched = True
+                        match_history.append((current_order, cross_price, traded))
+                        if current_order.filled():
+                            filled_list.append((current_price, current_order))
         curr = datetime.now().isoformat("T")
         for (current_price, current_order) in filled_list:
             current_orders.remove(current_price, current_order)
@@ -438,7 +444,7 @@ class OrderBook:
                     order.symbol(),
                     "BUY" if isBuy else "SELL",
                     orderId,
-                    newPrice,
+                    price,
                     newQuantity,
                     tracker.openQuantity(),
                     tracker.fillCost(),
@@ -451,3 +457,31 @@ class OrderBook:
             else:
                 print("--order not found")
             return matched
+    
+    def cancel(self, isBuy:bool, price:Decimal, orderId:str) -> bool:
+        market = self._bids if isBuy else self._asks
+        tracker = self.find(isBuy, price, orderId)
+        matched = False
+
+        if tracker:
+            time = datetime.now().isoformat("T")
+            order = tracker.order()
+            size_delta = -tracker.openQuantity()
+            tracker.change_qty(size_delta)
+            order.modify_quantity(order.quantity() + size_delta, time)
+            market.remove(Price(price, isBuy), tracker)
+            # add order even if the new quantity is 0
+            # DBHelper.update_order(
+            #     order.symbol(),
+            #     "BUY" if isBuy else "SELL",
+            #     orderId,
+            #     price,
+            #     order.quantity(),
+            #     tracker.openQuantity(),
+            #     tracker.fillCost(),
+            #     time,
+            # )
+            matched = self.add_order(tracker, price)
+        else:
+            print("--order not found")
+        return matched
