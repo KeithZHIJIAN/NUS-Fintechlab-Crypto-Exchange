@@ -15,8 +15,8 @@ func NewOrderTree() *OrderTree {
 	return (*OrderTree)(t)
 }
 
-func (ot OrderTree) Add(p *Price, o *Order) {
-	t := treemap.Map(ot)
+func (ot *OrderTree) Add(p *Price, o *Order) {
+	t := treemap.Map(*ot)
 	ls, ok := t.Get(p)
 	if !ok {
 		ls = NewOrderList()
@@ -25,8 +25,8 @@ func (ot OrderTree) Add(p *Price, o *Order) {
 	ls.(*OrderList).Add(o)
 }
 
-func (ot OrderTree) Remove(p *Price, id string) {
-	t := treemap.Map(ot)
+func (ot *OrderTree) Remove(p *Price, id string) {
+	t := treemap.Map(*ot)
 	ls, ok := t.Get(p)
 	if !ok {
 		fmt.Println("OrderTree: Price not found")
@@ -38,13 +38,13 @@ func (ot OrderTree) Remove(p *Price, id string) {
 	}
 }
 
-func (ot OrderTree) Iterator() treemap.Iterator {
-	t := treemap.Map(ot)
+func (ot *OrderTree) Iterator() treemap.Iterator {
+	t := treemap.Map(*ot)
 	return t.Iterator()
 }
 
-func (ot OrderTree) String() string {
-	t := treemap.Map(ot)
+func (ot *OrderTree) String() string {
+	t := treemap.Map(*ot)
 	str := "\n"
 	it := t.Iterator()
 	for it.Next() {
