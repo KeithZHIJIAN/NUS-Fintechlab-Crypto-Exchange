@@ -36,7 +36,8 @@ func (me *MatchingEngine) Start() {
 
 func (me *MatchingEngine) Apply(msg string) {
 	msgList := strings.Fields(msg)
-	if strings.ToUpper(msgList[0]) == "ADD" {
+	switch strings.ToUpper(msgList[0]) {
+	case "ADD":
 		me.DoAdd(msgList)
 	}
 }
