@@ -38,7 +38,7 @@ func (ol OrderList) String() string {
 	str := ""
 	it := m.Iterator()
 	for it.Next() {
-		str += fmt.Sprintf("%v", it.Value())
+		str += fmt.Sprintf("%v\n", it.Value())
 	}
 	return str
 }
