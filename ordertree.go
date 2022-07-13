@@ -6,42 +6,47 @@ import (
 	"github.com/emirpasic/gods/maps/treemap"
 )
 
-type OrderTree struct {
-	tree *treemap.Map
-}
+type OrderTree treemap.Map
 
 func NewOrderTree() *OrderTree {
-	return &OrderTree{
-		tree: treemap.NewWith(func(a, b interface{}) int {
-			return a.(*Price).Cmp(*b.(*Price))
-		}),
-	}
+	t := treemap.NewWith(func(a, b interface{}) int {
+		return a.(*Price).Cmp(*b.(*Price))
+	})
+	return (*OrderTree)(t)
 }
 
-func (ot *OrderTree) Add(p *Price, o *Order) {
-	ls, ok := ot.tree.Get(p)
+func (ot OrderTree) Add(p *Price, o *Order) {
+	t := treemap.Map(ot)
+	ls, ok := t.Get(p)
 	if !ok {
 		ls = NewOrderList()
-		ot.tree.Put(p, ls)
+		t.Put(p, ls)
 	}
 	ls.(*OrderList).Add(o)
 }
 
-func (ot *OrderTree) Remove(p *Price, id string) {
-	ls, ok := ot.tree.Get(p)
+func (ot OrderTree) Remove(p *Price, id string) {
+	t := treemap.Map(ot)
+	ls, ok := t.Get(p)
 	if !ok {
 		fmt.Println("OrderTree: Price not found")
 		return
 	}
 	ls.(*OrderList).Remove(id)
-	if ls.(*OrderList).list.Size() == 0 {
-		ot.tree.Remove(p)
+	if ls.(*OrderList).Size() == 0 {
+		t.Remove(p)
 	}
 }
 
-func (ot *OrderTree) String() string {
+func (ot OrderTree) Iterator() treemap.Iterator {
+	t := treemap.Map(ot)
+	return t.Iterator()
+}
+
+func (ot OrderTree) String() string {
+	t := treemap.Map(ot)
 	str := "\n"
-	it := ot.tree.Iterator()
+	it := t.Iterator()
 	for it.Next() {
 		str += fmt.Sprintf("%v\n", it.Value())
 	}

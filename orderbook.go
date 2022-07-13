@@ -79,15 +79,22 @@ func (ob *OrderBook) MatchOrder(inbound *Order, ot *OrderTree) {
 func (ob *OrderBook) MatchRegularOrder(inbound *Order, ot *OrderTree) {
 	inboudPrice := inbound.Price()
 	filledList := make([]*Order, 0)
-	otIter := ot.tree.Iterator()
+	otIter := ot.Iterator()
 	for otIter.Next() {
 		price := otIter.Key().(*Price)
 		orderList := otIter.Value().(*OrderList)
 		if price.Match(inboudPrice) {
-			olIter := orderList.list.Iterator()
+			olIter := orderList.Iterator()
 			for olIter.Next() {
 				outbound := olIter.Value().(*Order)
-				ob.CreateTrade(inbound, outbound, filledList)
+				crossPrice, fillQty := ob.CreateTrade(inbound, outbound)
+
+				if fillQty.Cmp(decimal.Zero) > 0 {
+					fmt.Println("order ", outbound.ID(), " & ", inbound.ID(), " filled ", fillQty, " @ $", crossPrice)
+				}
+				if outbound.Filled() {
+					filledList = append(filledList, outbound)
+				}
 			}
 		}
 	}
@@ -97,26 +104,21 @@ func (ob *OrderBook) MatchRegularOrder(inbound *Order, ot *OrderTree) {
 	}
 }
 
-func (ob *OrderBook) CreateTrade(inbound, outbound *Order, filledList []*Order) {
+func (ob *OrderBook) CreateTrade(inbound, outbound *Order) (decimal.Decimal, decimal.Decimal) {
 	crossPrice := ob.ComputeCrossPrice(inbound, outbound)
 	if crossPrice.Equal(decimal.Zero) {
-		return
+		return decimal.Zero, decimal.Zero
 	}
 
 	fillQty := ob.ComputeFillQuantity(inbound, outbound, crossPrice)
 	if fillQty.Equal(decimal.Zero) {
-		return
+		return decimal.Zero, decimal.Zero
 	}
 
 	ob.AddTradeRecord(inbound, outbound, crossPrice, fillQty)
 
-	if fillQty.Cmp(decimal.Zero) > 0 {
-		fmt.Println("order ", outbound.ID(), " & ", inbound.ID(), " filled ", fillQty, " @ $", crossPrice)
-	}
-	if outbound.Filled() {
-		filledList = append(filledList, outbound)
-	}
 	ob.SetMarketPrice(crossPrice)
+	return crossPrice, fillQty
 }
 
 func (ob *OrderBook) AddTradeRecord(inbound, outbound *Order, crossPrice, fillQty decimal.Decimal) {
