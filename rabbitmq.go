@@ -12,7 +12,7 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func Listen(me *MatchingEngine) {
+func Listen(ob *OrderBook) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -22,12 +22,12 @@ func Listen(me *MatchingEngine) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"exchange", // name
-		false,      // durable
-		false,      // delete when unused
-		false,      // exclusive
-		false,      // no-wait
-		nil,        // arguments
+		ob.symbol, // name
+		false,     // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -47,10 +47,10 @@ func Listen(me *MatchingEngine) {
 	go func() {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
-			me.Apply(string(d.Body[:]))
+			ob.Apply(string(d.Body[:]))
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	log.Printf(" [*] %s waiting for messages. To exit press CTRL+C", ob.symbol)
 	<-forever
 }

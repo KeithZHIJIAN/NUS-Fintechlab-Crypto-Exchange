@@ -17,6 +17,16 @@ type OrderBook struct {
 }
 
 func NewOrderBook(symbol string) *OrderBook {
+	// once.Do(func() { // <-- atomic, does not allow repeating
+	// 	instance = OrderBook{
+	// 		symbol:        symbol,
+	// 		asks:          NewOrderTree(),
+	// 		bids:          NewOrderTree(),
+	// 		pendingOrders: make([]*Order, 0),
+	// 		marketPrice:   decimal.Zero,
+	// 	}
+	// })
+	// return &instance
 	return &OrderBook{
 		symbol:        symbol,
 		asks:          NewOrderTree(),
@@ -24,6 +34,35 @@ func NewOrderBook(symbol string) *OrderBook {
 		pendingOrders: make([]*Order, 0),
 		marketPrice:   decimal.Zero,
 	}
+}
+
+func (ob *OrderBook) Start() {
+	Listen(ob)
+}
+
+// Message format:
+// -   Add, Symbol, Type, Side, Quantity, Price, Owner ID, Wallet ID, Stop Price (Optional)
+//     add ETHUSD limit ask 100 64000 user1 Alice1 (60000)
+//     add ethusd market ask 100 0 user1 Alice1 (60000)
+
+// -   Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
+//     modify ETHUSD buy 0000000002 100 63000 100 64000 //change price to 64000 only
+
+// -   Cancel, Symbol, Side, Price, Order ID
+//     cancel ETHUSD buy 100 0000000001
+func (ob *OrderBook) Apply(msg string) {
+	msgList := strings.Fields(msg)
+	if len(msgList) < 5 {
+		fmt.Println("invalid message: ", msg)
+		return
+	}
+	switch strings.ToUpper(msgList[0]) {
+	case "ADD":
+		ob.Add(msgList)
+	default:
+		fmt.Println("unknown message: ", msg)
+	}
+	fmt.Println(ob)
 }
 
 func (ob *OrderBook) MarketPrice() decimal.Decimal {
@@ -35,13 +74,17 @@ func (ob *OrderBook) SetMarketPrice(price decimal.Decimal) {
 }
 
 func (ob *OrderBook) Add(orderInfo []string) {
-	order := ParseOrder(orderInfo)
+	order := ob.ParseOrder(orderInfo)
+	if order.Symbol() != ob.symbol {
+		fmt.Println("symbol mismatch: ", order.Symbol(), ob.symbol)
+		return
+	}
 	// TODO: add order to db
 	ob.AddOrder(order)
 }
 
 // Add, Symbol, Type, Side, Quantity, Price, Owner ID, Wallet ID, Stop Price
-func ParseOrder(orderInfo []string) *Order {
+func (ob *OrderBook) ParseOrder(orderInfo []string) *Order {
 	symbol := strings.ToUpper(orderInfo[1])
 	isBuy := strings.ToUpper(orderInfo[3]) == "BUY" || strings.ToUpper(orderInfo[3]) == "BID"
 	quantity, _ := decimal.NewFromString(orderInfo[4])

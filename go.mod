@@ -1,4 +1,4 @@
-module matchingengine
+module example/matchingengine
 
 go 1.18
 
