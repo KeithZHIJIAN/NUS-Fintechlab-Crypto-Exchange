@@ -54,3 +54,70 @@ func Listen(ob *OrderBook) {
 	log.Printf(" [*] %s waiting for messages. To exit press CTRL+C", ob.symbol)
 	<-forever
 }
+
+func UpdateAskOrder(ob *OrderBook) {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	exchange := "UPDATE_ASK_ORDER_" + ob.symbol + ".DLQ.Exchange"
+	err = ch.ExchangeDeclare(
+		exchange, // name
+		"fanout", // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	err = ch.Publish(
+		exchange, // exchange
+		"",       // routing key
+		false,    // mandatory
+		false,    // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(ob.asks.UpdateString()),
+		})
+	failOnError(err, "Failed to publish a message")
+}
+
+func UpdateBidOrder(ob *OrderBook) {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	failOnError(err, "Failed to connect to RabbitMQ")
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	defer ch.Close()
+
+	exchange := "UPDATE_BID_ORDER_" + ob.symbol + ".DLQ.Exchange"
+
+	err = ch.ExchangeDeclare(
+		exchange, // name
+		"fanout", // type
+		false,    // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	err = ch.Publish(
+		exchange, // exchange
+		"",       // routing key
+		false,    // mandatory
+		false,    // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(ob.bids.UpdateString()),
+		})
+	failOnError(err, "Failed to publish a message")
+}

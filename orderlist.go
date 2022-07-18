@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/emirpasic/gods/maps/linkedhashmap"
 )
 
@@ -31,14 +29,4 @@ func (ol *OrderList) Iterator() linkedhashmap.Iterator {
 func (ol *OrderList) Size() int {
 	m := linkedhashmap.Map(*ol)
 	return m.Size()
-}
-
-func (ol *OrderList) String() string {
-	m := linkedhashmap.Map(*ol)
-	str := ""
-	it := m.Iterator()
-	for it.Next() {
-		str += fmt.Sprintf("%v\n", it.Value())
-	}
-	return str
 }

@@ -17,16 +17,6 @@ type OrderBook struct {
 }
 
 func NewOrderBook(symbol string) *OrderBook {
-	// once.Do(func() { // <-- atomic, does not allow repeating
-	// 	instance = OrderBook{
-	// 		symbol:        symbol,
-	// 		asks:          NewOrderTree(),
-	// 		bids:          NewOrderTree(),
-	// 		pendingOrders: make([]*Order, 0),
-	// 		marketPrice:   decimal.Zero,
-	// 	}
-	// })
-	// return &instance
 	return &OrderBook{
 		symbol:        symbol,
 		asks:          NewOrderTree(),
@@ -62,6 +52,8 @@ func (ob *OrderBook) Apply(msg string) {
 	default:
 		fmt.Println("unknown message: ", msg)
 	}
+	// UpdateAskOrder(ob)
+	// UpdateBidOrder(ob)
 	fmt.Println(ob)
 }
 
@@ -229,5 +221,5 @@ func (ob *OrderBook) CheckSellerAsset(seller *Order, fillQty decimal.Decimal) de
 }
 
 func (ob *OrderBook) String() string {
-	return fmt.Sprintf("symbol:%s\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
+	return fmt.Sprintf("\nsymbol:%s,\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
 }

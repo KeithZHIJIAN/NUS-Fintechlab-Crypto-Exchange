@@ -8,6 +8,8 @@ import (
 
 type OrderTree treemap.Map
 
+var DEPTH = 4
+
 func NewOrderTree() *OrderTree {
 	t := treemap.NewWith(func(a, b interface{}) int {
 		return a.(*Price).Cmp(*b.(*Price))
@@ -45,10 +47,31 @@ func (ot *OrderTree) Iterator() treemap.Iterator {
 
 func (ot *OrderTree) String() string {
 	t := treemap.Map(*ot)
-	str := "\n"
-	it := t.Iterator()
-	for it.Next() {
-		str += fmt.Sprintf("%v\n", it.Value())
+	str := ""
+	OTiter := t.Iterator()
+	cnt := 0
+	for OTiter.Next() && cnt < DEPTH {
+		OLiter := OTiter.Value().(*OrderList).Iterator()
+		for OLiter.Next() && cnt < DEPTH {
+			str += fmt.Sprintf("%v\n", OLiter.Value())
+			cnt += 1
+		}
 	}
+	return str
+}
+
+func (ot *OrderTree) UpdateString() string {
+	t := treemap.Map(*ot)
+	str := "[\n"
+	OTiter := t.Iterator()
+	cnt := 0
+	for OTiter.Next() && cnt < DEPTH {
+		OLiter := OTiter.Value().(*OrderList).Iterator()
+		for OLiter.Next() && cnt < DEPTH {
+			str += fmt.Sprintf("%v\n", OLiter.Value().(*Order).UpdateString())
+			cnt += 1
+		}
+	}
+	str += "]"
 	return str
 }

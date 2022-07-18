@@ -114,11 +114,14 @@ func (o *Order) Filled() bool {
 	return o.openQuantity.Cmp(decimal.Zero) == 0
 }
 
-// String implements Stringer interface
 func (o *Order) String() string {
 	side := "Sell"
 	if o.isBuy {
 		side = "Buy"
 	}
-	return fmt.Sprintf("%s\t%s %s at $%s", o.id, side, o.openQuantity, o.price)
+	return fmt.Sprintf("%s\t%s %s @ $%s", o.id, side, o.openQuantity, o.price)
+}
+
+func (o *Order) UpdateString() string {
+	return fmt.Sprintf("{price:%s, openquantity:%s},", o.price, o.openQuantity)
 }
