@@ -41,6 +41,15 @@ func (ot *OrderTree) Remove(p *Price, id string) {
 	}
 }
 
+func (ot *OrderTree) Get(p *Price) (*OrderList, bool) {
+	t := treemap.Map(*ot)
+	ls, ok := t.Get(p)
+	if !ok {
+		return nil, false
+	}
+	return ls.(*OrderList), true
+}
+
 func (ot *OrderTree) Iterator() treemap.Iterator {
 	t := treemap.Map(*ot)
 	return t.Iterator()

@@ -161,7 +161,20 @@ func (ob *OrderBook) AddTradeRecord(inbound, outbound *Order, crossPrice, fillQt
 	curr := time.Now()
 	inbound.Fill(crossPrice, fillQty, curr)
 	outbound.Fill(crossPrice, fillQty, curr)
+	ob.FillOrderList(outbound, fillQty)
 	// TODO: add db trade record, update db order table, update db balance table, update db asset table
+}
+
+func (ob *OrderBook) FillOrderList(outbound *Order, fillQty decimal.Decimal) {
+	ot := ob.asks
+	isBuy := false
+	if outbound.IsBuy() {
+		ot = ob.bids
+		isBuy = true
+	}
+	if ol, ok := ot.Get(&Price{outbound.Price(), isBuy}); ok {
+		ol.Fill(fillQty)
+	}
 }
 
 func (ob *OrderBook) ComputeCrossPrice(inbound, outbound *Order) decimal.Decimal {

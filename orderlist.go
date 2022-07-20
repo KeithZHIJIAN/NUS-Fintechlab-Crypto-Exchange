@@ -21,10 +21,11 @@ func (ol *OrderList) Add(o *Order) {
 }
 
 func (ol *OrderList) Remove(id string) {
-	if order, ok := ol.m.Get(id); ok {
-		ol.m.Remove(id)
-		ol.quantity = ol.quantity.Sub(order.(*Order).quantity)
-	}
+	ol.m.Remove(id)
+}
+
+func (ol *OrderList) Fill(quantity decimal.Decimal) {
+	ol.quantity = ol.quantity.Sub(quantity)
 }
 
 func (ol *OrderList) Iterator() linkedhashmap.Iterator {
