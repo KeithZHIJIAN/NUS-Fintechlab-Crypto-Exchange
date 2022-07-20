@@ -10,9 +10,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func ConnectDB() *sql.DB {
-	err := godotenv.Load(".env")
+var db = NewDB()
 
+func NewDB() *sql.DB {
+	err := godotenv.Load(".env")
 	if err != nil {
 		panic(err)
 	}
@@ -25,9 +26,6 @@ func ConnectDB() *sql.DB {
 }
 
 func ReadUserBalance(userId string) decimal.Decimal {
-	db := ConnectDB()
-	defer db.Close()
-
 	query := "SELECT balance FROM users WHERE userid = $1"
 	row := db.QueryRow(query, userId)
 	var balance decimal.Decimal
@@ -39,9 +37,6 @@ func ReadUserBalance(userId string) decimal.Decimal {
 }
 
 func ReadWalletAsset(walletId, symbol string) decimal.Decimal {
-	db := ConnectDB()
-	defer db.Close()
-
 	query := "SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2"
 	row := db.QueryRow(query, walletId, strings.ToLower(symbol))
 	var amount decimal.Decimal

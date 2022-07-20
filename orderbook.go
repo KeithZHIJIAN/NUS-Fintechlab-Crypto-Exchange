@@ -215,7 +215,6 @@ func (ob *OrderBook) ComputeFillQuantity(inbound, outbound *Order, crossPrice de
 }
 
 func (ob *OrderBook) CheckBuyerBalance(buyer *Order, crossPrice, fillQty decimal.Decimal) decimal.Decimal {
-	// TODO: check buyer's db balance
 	balance := ReadUserBalance(buyer.OwnerId())
 	if balance.Cmp(crossPrice.Mul(fillQty)) < 0 {
 		fillQty = balance.Div(crossPrice)
@@ -227,7 +226,6 @@ func (ob *OrderBook) CheckBuyerBalance(buyer *Order, crossPrice, fillQty decimal
 }
 
 func (ob *OrderBook) CheckSellerAsset(seller *Order, fillQty decimal.Decimal) decimal.Decimal {
-	// TODO: check seller's db asset
 	quantity := ReadWalletAsset(seller.WalletId(), seller.Symbol())
 	if quantity.Cmp(fillQty) < 0 {
 		fillQty = quantity

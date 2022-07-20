@@ -6,6 +6,17 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+var ch = NewChanel()
+
+func NewChanel() *amqp.Channel {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	failOnError(err, "Failed to connect to RabbitMQ")
+
+	ch, err := conn.Channel()
+	failOnError(err, "Failed to open a channel")
+	return ch
+}
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Panicf("%s: %s", msg, err)
@@ -13,14 +24,6 @@ func failOnError(err error, msg string) {
 }
 
 func Listen(ob *OrderBook) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
 	q, err := ch.QueueDeclare(
 		ob.symbol, // name
 		false,     // durable
@@ -56,16 +59,9 @@ func Listen(ob *OrderBook) {
 }
 
 func UpdateAskOrder(ob *OrderBook) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
 	exchange := "UPDATE_ASK_ORDER_" + ob.symbol + ".DLQ.Exchange"
-	err = ch.ExchangeDeclare(
+
+	err := ch.ExchangeDeclare(
 		exchange, // name
 		"fanout", // type
 		false,    // durable
@@ -89,17 +85,9 @@ func UpdateAskOrder(ob *OrderBook) {
 }
 
 func UpdateBidOrder(ob *OrderBook) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
-
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
-
 	exchange := "UPDATE_BID_ORDER_" + ob.symbol + ".DLQ.Exchange"
 
-	err = ch.ExchangeDeclare(
+	err := ch.ExchangeDeclare(
 		exchange, // name
 		"fanout", // type
 		false,    // durable
