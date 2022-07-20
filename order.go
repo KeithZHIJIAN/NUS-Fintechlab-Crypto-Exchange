@@ -123,5 +123,5 @@ func (o *Order) String() string {
 }
 
 func (o *Order) UpdateString() string {
-	return fmt.Sprintf("{price:%s, openquantity:%s},", o.price, o.openQuantity)
+	return fmt.Sprintf("{\"price\": %s, \"openquantity\": %s}", o.price, o.openQuantity)
 }

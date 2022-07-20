@@ -52,8 +52,10 @@ func (ob *OrderBook) Apply(msg string) {
 	default:
 		fmt.Println("unknown message: ", msg)
 	}
-	// UpdateAskOrder(ob)
-	// UpdateBidOrder(ob)
+	UpdateAskOrder(ob)
+	UpdateBidOrder(ob)
+	fmt.Println(ob.asks.UpdateString())
+	fmt.Println(ob.bids.UpdateString())
 	fmt.Println(ob)
 }
 
@@ -221,5 +223,5 @@ func (ob *OrderBook) CheckSellerAsset(seller *Order, fillQty decimal.Decimal) de
 }
 
 func (ob *OrderBook) String() string {
-	return fmt.Sprintf("\nsymbol:%s,\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
+	return fmt.Sprintf("\nsymbol:%s\n\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
 }

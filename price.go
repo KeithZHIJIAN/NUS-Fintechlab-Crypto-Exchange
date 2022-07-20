@@ -14,16 +14,15 @@ func (p Price) Cmp(rhs Price) int {
 		return 0
 	}
 	if p.isBuy {
-		return p.price.Cmp(rhs.price)
+		return rhs.price.Cmp(p.price)
 	} else {
 		if p.price.Equal(decimal.Zero) {
 			return -1
 		} else if rhs.price.Equal(decimal.Zero) {
 			return 1
 		} else {
-			return rhs.price.Cmp(p.price)
+			return p.price.Cmp(rhs.price)
 		}
-
 	}
 }
 

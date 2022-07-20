@@ -68,7 +68,7 @@ func UpdateAskOrder(ob *OrderBook) {
 	err = ch.ExchangeDeclare(
 		exchange, // name
 		"fanout", // type
-		true,     // durable
+		false,    // durable
 		false,    // auto-deleted
 		false,    // internal
 		false,    // no-wait

@@ -2,31 +2,39 @@ package main
 
 import (
 	"github.com/emirpasic/gods/maps/linkedhashmap"
+	"github.com/shopspring/decimal"
 )
 
-type OrderList linkedhashmap.Map
+type OrderList struct {
+	m        *linkedhashmap.Map
+	quantity decimal.Decimal
+}
 
 func NewOrderList() *OrderList {
 	m := linkedhashmap.New()
-	return (*OrderList)(m)
+	return &OrderList{m, decimal.Zero}
 }
 
 func (ol *OrderList) Add(o *Order) {
-	m := linkedhashmap.Map(*ol)
-	m.Put(o.ID(), o)
+	ol.m.Put(o.ID(), o)
+	ol.quantity = ol.quantity.Add(o.quantity)
 }
 
 func (ol *OrderList) Remove(id string) {
-	m := linkedhashmap.Map(*ol)
-	m.Remove(id)
+	if order, ok := ol.m.Get(id); ok {
+		ol.m.Remove(id)
+		ol.quantity = ol.quantity.Sub(order.(*Order).quantity)
+	}
 }
 
 func (ol *OrderList) Iterator() linkedhashmap.Iterator {
-	m := linkedhashmap.Map(*ol)
-	return m.Iterator()
+	return ol.m.Iterator()
 }
 
 func (ol *OrderList) Size() int {
-	m := linkedhashmap.Map(*ol)
-	return m.Size()
+	return ol.m.Size()
+}
+
+func (ol *OrderList) Quantity() decimal.Decimal {
+	return ol.quantity
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/emirpasic/gods/maps/treemap"
 )
@@ -53,7 +54,12 @@ func (ot *OrderTree) String() string {
 	for OTiter.Next() && cnt < DEPTH {
 		OLiter := OTiter.Value().(*OrderList).Iterator()
 		for OLiter.Next() && cnt < DEPTH {
-			str += fmt.Sprintf("%v\n", OLiter.Value())
+			order := OLiter.Value().(*Order)
+			if order.IsBuy() {
+				str += fmt.Sprintf("%v\n", OLiter.Value())
+			} else {
+				str = fmt.Sprintf("%v\n", OLiter.Value()) + str
+			}
 			cnt += 1
 		}
 	}
@@ -62,16 +68,29 @@ func (ot *OrderTree) String() string {
 
 func (ot *OrderTree) UpdateString() string {
 	t := treemap.Map(*ot)
-	str := "[\n"
+	str := ""
+	isBuy := true
 	OTiter := t.Iterator()
 	cnt := 0
 	for OTiter.Next() && cnt < DEPTH {
+		price := OTiter.Key().(*Price)
 		OLiter := OTiter.Value().(*OrderList).Iterator()
-		for OLiter.Next() && cnt < DEPTH {
-			str += fmt.Sprintf("%v\n", OLiter.Value().(*Order).UpdateString())
-			cnt += 1
+		if OLiter.Next() {
+			order := OLiter.Value().(*Order)
+			isBuy = order.IsBuy()
 		}
+
+		if isBuy {
+			str += fmt.Sprintf("{\"price\": %s, \"openquantity\": %s}, ", price, OTiter.Value().(*OrderList).Quantity())
+		} else {
+			str = fmt.Sprintf("{\"price\": %s, \"openquantity\": %s}, ", price, OTiter.Value().(*OrderList).Quantity()) + str
+		}
+		cnt += 1
 	}
-	str += "]"
-	return str
+
+	if isBuy {
+		return "{\"getOpenBidOrdersForSymbol\": [" + strings.TrimSuffix(str, ", ") + "]}"
+	} else {
+		return "{\"getOpenAskOrdersForSymbol\": [" + strings.TrimSuffix(str, ", ") + "]}"
+	}
 }
