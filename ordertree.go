@@ -84,9 +84,9 @@ func (ot *OrderTree) UpdateString() string {
 	for OTiter.Next() && cnt < DEPTH {
 		price := OTiter.Key().(*Price)
 		OLiter := OTiter.Value().(*OrderList).Iterator()
+
 		if OLiter.Next() {
-			order := OLiter.Value().(*Order)
-			isBuy = order.IsBuy()
+			isBuy = OLiter.Value().(*Order).IsBuy()
 		}
 
 		if isBuy {

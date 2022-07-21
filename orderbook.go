@@ -49,14 +49,14 @@ func (ob *OrderBook) Apply(msg string) {
 	switch strings.ToUpper(msgList[0]) {
 	case "ADD":
 		ob.Add(msgList)
+	// case "MODIFY":
+	// 	ob.Modify(msgList)
 	default:
 		fmt.Println("unknown message: ", msg)
 	}
 	UpdateAskOrder(ob)
 	UpdateBidOrder(ob)
-	fmt.Println(ob.asks.UpdateString())
-	fmt.Println(ob.bids.UpdateString())
-	fmt.Println(ob)
+	// fmt.Println(ob)
 }
 
 func (ob *OrderBook) MarketPrice() decimal.Decimal {
@@ -69,11 +69,15 @@ func (ob *OrderBook) SetMarketPrice(price decimal.Decimal) {
 
 func (ob *OrderBook) Add(orderInfo []string) {
 	order := ob.ParseOrder(orderInfo)
-	if order.Symbol() != ob.symbol {
-		fmt.Println("symbol mismatch: ", order.Symbol(), ob.symbol)
+	if order == nil {
+		fmt.Println("Failed parsing order")
 		return
 	}
-	// TODO: add order to db
+	if order.Symbol() != ob.symbol {
+		fmt.Println("Symbol mismatch: ", order.Symbol(), ob.symbol)
+		return
+	}
+	CreateOpenOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), ob.symbol, order.Price(), order.quantity, time.Now())
 	ob.AddOrder(order)
 }
 
@@ -81,8 +85,11 @@ func (ob *OrderBook) Add(orderInfo []string) {
 func (ob *OrderBook) ParseOrder(orderInfo []string) *Order {
 	symbol := strings.ToUpper(orderInfo[1])
 	isBuy := strings.ToUpper(orderInfo[3]) == "BUY" || strings.ToUpper(orderInfo[3]) == "BID"
-	quantity, _ := decimal.NewFromString(orderInfo[4])
-	price, _ := decimal.NewFromString(orderInfo[5])
+	quantity, err := decimal.NewFromString(orderInfo[4])
+	price, err := decimal.NewFromString(orderInfo[5])
+	if err != nil {
+		return nil
+	}
 	if strings.ToUpper(orderInfo[2]) == "MARKET" {
 		price = decimal.Zero
 	}
@@ -103,7 +110,8 @@ func (ob *OrderBook) AddOrder(inbound *Order) {
 	p := &Price{price: inbound.Price(), isBuy: inbound.IsBuy()}
 
 	if inbound.Filled() {
-		// TODO: close order in db
+		DeleteOpenOrder(inbound.IsBuy(), ob.symbol, inbound.ID())
+		CreateClosedOrder(inbound.IsBuy(), ob.symbol, inbound.ID(), inbound.WalletId(), inbound.OwnerId(), inbound.Quantity(), inbound.Price(), inbound.FillCost(), inbound.CreateTime(), time.Now())
 	} else {
 		inboundList.Add(p, inbound)
 	}
@@ -128,9 +136,11 @@ func (ob *OrderBook) MatchRegularOrder(inbound *Order, ot *OrderTree) {
 			}
 		}
 	}
+	curr := time.Now()
 	for _, order := range filledList {
 		ot.Remove(&Price{price: order.Price(), isBuy: order.IsBuy()}, order.ID())
-		// TODO: close order in db
+		DeleteOpenOrder(order.IsBuy(), ob.symbol, order.ID())
+		CreateClosedOrder(order.IsBuy(), ob.symbol, order.ID(), order.WalletId(), order.OwnerId(), order.Quantity(), order.Price(), order.FillCost(), order.CreateTime(), curr)
 	}
 }
 
@@ -140,16 +150,21 @@ func (ob *OrderBook) CreateTrade(inbound, outbound *Order, filledList *[]*Order)
 		return
 	}
 
-	fillQty := ob.ComputeFillQuantity(inbound, outbound, crossPrice)
+	buyer, seller := outbound, inbound
+	if inbound.IsBuy() {
+		buyer, seller = inbound, outbound
+	}
+
+	fillQty := ob.ComputeFillQuantity(buyer, seller, crossPrice)
 	if fillQty.Equal(decimal.Zero) {
 		return
 	}
 
-	ob.AddTradeRecord(inbound, outbound, crossPrice, fillQty)
+	ob.AddTradeRecord(buyer, seller, outbound, crossPrice, fillQty)
 
 	ob.SetMarketPrice(crossPrice)
 
-	if fillQty.Cmp(decimal.Zero) > 0 {
+	if fillQty.GreaterThan(decimal.Zero) {
 		fmt.Println("order ", outbound.ID(), " & ", inbound.ID(), " filled ", fillQty, " @ $", crossPrice)
 	}
 	if outbound.Filled() {
@@ -157,12 +172,16 @@ func (ob *OrderBook) CreateTrade(inbound, outbound *Order, filledList *[]*Order)
 	}
 }
 
-func (ob *OrderBook) AddTradeRecord(inbound, outbound *Order, crossPrice, fillQty decimal.Decimal) {
+func (ob *OrderBook) AddTradeRecord(buyer, seller, outbound *Order, crossPrice, fillQty decimal.Decimal) {
 	curr := time.Now()
-	inbound.Fill(crossPrice, fillQty, curr)
-	outbound.Fill(crossPrice, fillQty, curr)
+	buyer.Fill(crossPrice, fillQty, curr)
+	seller.Fill(crossPrice, fillQty, curr)
 	ob.FillOrderList(outbound, fillQty)
-	// TODO: add db trade record, update db order table, update db balance table, update db asset table
+	CreateTradeRecord(buyer.Symbol(), buyer.ID(), seller.ID(), crossPrice, fillQty, curr)
+	UpdateOrder(buyer.Symbol(), buyer.ID(), buyer.IsBuy(), buyer.Price(), buyer.Quantity(), buyer.OpenQuantity(), curr)
+	UpdateOrder(seller.Symbol(), seller.ID(), seller.IsBuy(), seller.Price(), seller.Quantity(), seller.OpenQuantity(), curr)
+	UpdateUserBalance(buyer.OwnerId(), seller.OwnerId(), crossPrice.Mul(fillQty))
+	UpdateWalletAsset(buyer.Symbol(), buyer.WalletId(), seller.WalletId(), fillQty)
 }
 
 func (ob *OrderBook) FillOrderList(outbound *Order, fillQty decimal.Decimal) {
@@ -192,23 +211,16 @@ func (ob *OrderBook) ComputeCrossPrice(inbound, outbound *Order) decimal.Decimal
 	return crossPrice
 }
 
-func (ob *OrderBook) ComputeFillQuantity(inbound, outbound *Order, crossPrice decimal.Decimal) decimal.Decimal {
-	fillQty := inbound.OpenQuantity()
-	if outbound.OpenQuantity().Cmp(fillQty) < 0 {
-		fillQty = outbound.OpenQuantity()
+func (ob *OrderBook) ComputeFillQuantity(buyer, seller *Order, crossPrice decimal.Decimal) decimal.Decimal {
+	fillQty := buyer.OpenQuantity()
+	if seller.OpenQuantity().LessThan(fillQty) {
+		fillQty = seller.OpenQuantity()
 	}
-	if fillQty.Cmp(decimal.Zero) > 0 {
-		buyer, seller := outbound, inbound
-		if inbound.IsBuy() {
-			buyer, seller = inbound, outbound
-		}
-
+	if fillQty.GreaterThan(decimal.Zero) {
 		// Check buyer's balance before trade, if not enough, buy as much as possible
 		fillQty = ob.CheckBuyerBalance(buyer, crossPrice, fillQty)
-
 		// Check seller's asset before trade, if not enough, sell as much as possible
 		fillQty = ob.CheckSellerAsset(seller, fillQty)
-
 		return fillQty
 	}
 	return decimal.Zero
@@ -216,9 +228,9 @@ func (ob *OrderBook) ComputeFillQuantity(inbound, outbound *Order, crossPrice de
 
 func (ob *OrderBook) CheckBuyerBalance(buyer *Order, crossPrice, fillQty decimal.Decimal) decimal.Decimal {
 	balance := ReadUserBalance(buyer.OwnerId())
-	if balance.Cmp(crossPrice.Mul(fillQty)) < 0 {
+	if balance.LessThan(crossPrice.Mul(fillQty)) {
 		fillQty = balance.Div(crossPrice)
-		if fillQty.Cmp(decimal.NewFromFloat(0.01)) <= 0 {
+		if fillQty.LessThanOrEqual(decimal.NewFromFloat(0.01)) {
 			return decimal.Zero
 		}
 	}
@@ -227,7 +239,7 @@ func (ob *OrderBook) CheckBuyerBalance(buyer *Order, crossPrice, fillQty decimal
 
 func (ob *OrderBook) CheckSellerAsset(seller *Order, fillQty decimal.Decimal) decimal.Decimal {
 	quantity := ReadWalletAsset(seller.WalletId(), seller.Symbol())
-	if quantity.Cmp(fillQty) < 0 {
+	if quantity.LessThan(fillQty) {
 		fillQty = quantity
 	}
 	return fillQty
@@ -236,3 +248,20 @@ func (ob *OrderBook) CheckSellerAsset(seller *Order, fillQty decimal.Decimal) de
 func (ob *OrderBook) String() string {
 	return fmt.Sprintf("\nsymbol:%s\n\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
 }
+
+// Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
+// func (ob *OrderBook) Modify(orderInfo []string) {
+// 	isBuy := strings.ToUpper(orderInfo[2]) == "BUY" || strings.ToUpper(orderInfo[2]) == "BID"
+// 	orderId := orderInfo[3]
+
+// 	prevQuantity, err := decimal.NewFromString(orderInfo[4])
+// 	prevPrice, err := decimal.NewFromString(orderInfo[5])
+// 	newQuantity, err := decimal.NewFromString(orderInfo[6])
+// 	newPrice, err := decimal.NewFromString(orderInfo[7])
+
+// 	if err != nil {
+// 		fmt.Println("Failed modifying order")
+// 		return
+// 	}
+
+// }

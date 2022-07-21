@@ -58,7 +58,12 @@ func Listen(ob *OrderBook) {
 	<-forever
 }
 
+var prevAsks = ""
+
 func UpdateAskOrder(ob *OrderBook) {
+	if prevAsks == ob.asks.UpdateString() {
+		return
+	}
 	exchange := "UPDATE_ASK_ORDER_" + ob.symbol + ".DLQ.Exchange"
 
 	err := ch.ExchangeDeclare(
@@ -81,10 +86,16 @@ func UpdateAskOrder(ob *OrderBook) {
 			ContentType: "text/plain",
 			Body:        []byte(ob.asks.UpdateString()),
 		})
+	prevAsks = ob.asks.UpdateString()
 	failOnError(err, "Failed to publish a message")
 }
 
+var prevBids = ""
+
 func UpdateBidOrder(ob *OrderBook) {
+	if prevBids == ob.bids.UpdateString() {
+		return
+	}
 	exchange := "UPDATE_BID_ORDER_" + ob.symbol + ".DLQ.Exchange"
 
 	err := ch.ExchangeDeclare(
@@ -107,5 +118,6 @@ func UpdateBidOrder(ob *OrderBook) {
 			ContentType: "text/plain",
 			Body:        []byte(ob.bids.UpdateString()),
 		})
+	prevBids = ob.bids.UpdateString()
 	failOnError(err, "Failed to publish a message")
 }

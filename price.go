@@ -35,9 +35,9 @@ func (p Price) Match(rhs decimal.Decimal) bool {
 		return true
 	}
 	if p.isBuy {
-		return p.price.Cmp(rhs) >= 0
+		return p.price.GreaterThanOrEqual(rhs)
 	} else {
-		return p.price.Cmp(rhs) <= 0
+		return p.price.LessThanOrEqual(rhs)
 	}
 }
 

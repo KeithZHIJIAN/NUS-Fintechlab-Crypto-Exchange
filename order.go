@@ -80,6 +80,10 @@ func (o *Order) WalletId() string {
 	return o.walletId
 }
 
+func (o *Order) CreateTime() time.Time {
+	return o.createTime
+}
+
 func (o *Order) ModifyPrice(newPrice decimal.Decimal, currTime time.Time) {
 	if o.price == decimal.Zero {
 		print("Order: Cannot modify market order price")
@@ -91,7 +95,7 @@ func (o *Order) ModifyPrice(newPrice decimal.Decimal, currTime time.Time) {
 
 func (o *Order) ModifyQuantity(newQuantity decimal.Decimal, currTime time.Time) {
 	delta := newQuantity.Sub(o.quantity)
-	if o.openQuantity.Add(delta).Cmp(decimal.Zero) == -1 {
+	if o.openQuantity.Add(delta).LessThan(decimal.Zero) {
 		print("Order: Change quantity exceeds open quantity")
 		return
 	}
@@ -101,7 +105,7 @@ func (o *Order) ModifyQuantity(newQuantity decimal.Decimal, currTime time.Time) 
 }
 
 func (o *Order) Fill(price, quantity decimal.Decimal, currTime time.Time) {
-	if o.openQuantity.Cmp(quantity) == -1 {
+	if o.openQuantity.LessThan(quantity) {
 		print("Order: Fill quantity exceeds open quantity")
 		return
 	}
@@ -111,7 +115,7 @@ func (o *Order) Fill(price, quantity decimal.Decimal, currTime time.Time) {
 }
 
 func (o *Order) Filled() bool {
-	return o.openQuantity.Cmp(decimal.Zero) == 0
+	return o.openQuantity.Equal(decimal.Zero)
 }
 
 func (o *Order) String() string {
