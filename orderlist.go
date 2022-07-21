@@ -20,6 +20,13 @@ func (ol *OrderList) Add(o *Order) {
 	ol.quantity = ol.quantity.Add(o.quantity)
 }
 
+func (ol *OrderList) Get(id string) (*Order, bool) {
+	if o, ok := ol.m.Get(id); ok {
+		return o.(*Order), true
+	}
+	return nil, false
+}
+
 func (ol *OrderList) Remove(id string) {
 	ol.m.Remove(id)
 }

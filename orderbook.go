@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -43,20 +44,22 @@ func (ob *OrderBook) Start() {
 func (ob *OrderBook) Apply(msg string) {
 	msgList := strings.Fields(msg)
 	if len(msgList) < 5 {
-		fmt.Println("invalid message: ", msg)
+		log.Println("invalid message: ", msg)
 		return
 	}
 	switch strings.ToUpper(msgList[0]) {
 	case "ADD":
 		ob.Add(msgList)
-	// case "MODIFY":
-	// 	ob.Modify(msgList)
+	case "MODIFY":
+		ob.Modify(msgList)
+	case "CANCEL":
+		ob.Cancel(msgList)
 	default:
-		fmt.Println("unknown message: ", msg)
+		log.Println("unknown message: ", msg)
 	}
 	UpdateAskOrder(ob)
 	UpdateBidOrder(ob)
-	// fmt.Println(ob)
+	log.Println(ob)
 }
 
 func (ob *OrderBook) MarketPrice() decimal.Decimal {
@@ -67,14 +70,21 @@ func (ob *OrderBook) SetMarketPrice(price decimal.Decimal) {
 	ob.marketPrice = price
 }
 
+func (ob *OrderBook) SubmitPendingOrders() {
+	for _, order := range ob.pendingOrders {
+		ob.AddOrder(order)
+	}
+	ob.pendingOrders = make([]*Order, 0)
+}
+
 func (ob *OrderBook) Add(orderInfo []string) {
 	order := ob.ParseOrder(orderInfo)
 	if order == nil {
-		fmt.Println("Failed parsing order")
+		log.Println("Failed parsing order")
 		return
 	}
 	if order.Symbol() != ob.symbol {
-		fmt.Println("Symbol mismatch: ", order.Symbol(), ob.symbol)
+		log.Println("Symbol mismatch: ", order.Symbol(), ob.symbol)
 		return
 	}
 	CreateOpenOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), ob.symbol, order.Price(), order.quantity, time.Now())
@@ -165,7 +175,7 @@ func (ob *OrderBook) CreateTrade(inbound, outbound *Order, filledList *[]*Order)
 	ob.SetMarketPrice(crossPrice)
 
 	if fillQty.GreaterThan(decimal.Zero) {
-		fmt.Println("order ", outbound.ID(), " & ", inbound.ID(), " filled ", fillQty, " @ $", crossPrice)
+		log.Println("order ", outbound.ID(), " & ", inbound.ID(), " filled ", fillQty, " @ $", crossPrice)
 	}
 	if outbound.Filled() {
 		*filledList = append(*filledList, outbound)
@@ -249,19 +259,82 @@ func (ob *OrderBook) String() string {
 	return fmt.Sprintf("\nsymbol:%s\n\nasks:\n%v\nbids:\n%v\n", ob.symbol, ob.asks, ob.bids)
 }
 
+func (ob *OrderBook) Get(isBuy bool, price decimal.Decimal, orderId string) (*Order, bool) {
+	ot := ob.asks
+	if isBuy {
+		ot = ob.bids
+	}
+	if ol, ok := ot.Get(&Price{price, isBuy}); ok {
+		if o, ok := ol.Get(orderId); ok {
+			return o, true
+		}
+	}
+	return nil, false
+}
+
 // Modify, Symbol, Side, Order ID, prev Quantity, prev Price, new Quantity, new Price
-// func (ob *OrderBook) Modify(orderInfo []string) {
-// 	isBuy := strings.ToUpper(orderInfo[2]) == "BUY" || strings.ToUpper(orderInfo[2]) == "BID"
-// 	orderId := orderInfo[3]
+func (ob *OrderBook) Modify(orderInfo []string) {
+	symbol := strings.ToUpper(orderInfo[1])
+	if symbol != ob.symbol {
+		log.Println("Symbol mismatch:", symbol, ob.symbol)
+		return
+	}
+	curr := time.Now()
+	isBuy := strings.ToUpper(orderInfo[2]) == "BUY" || strings.ToUpper(orderInfo[2]) == "BID"
+	orderId := orderInfo[3]
+	prevPrice, err := decimal.NewFromString(orderInfo[5])
+	newQuantity, err := decimal.NewFromString(orderInfo[6])
+	newPrice, err := decimal.NewFromString(orderInfo[7])
+	if err != nil {
+		log.Println("Failed parsing order price/quantity:", err)
+		return
+	}
+	if prevPrice.Equal(decimal.Zero) && !newPrice.Equal(decimal.Zero) {
+		log.Println("Cannot change market order price")
+		return
+	}
+	if order, ok := ob.Get(isBuy, prevPrice, orderId); ok {
+		order.ModifyPrice(newPrice, curr)
+		order.ModifyQuantity(newQuantity, curr)
+		ot := ob.asks
+		if isBuy {
+			ot = ob.bids
+		}
+		ot.Remove(&Price{prevPrice, isBuy}, orderId)
+		UpdateOrder(symbol, orderId, isBuy, newPrice, newQuantity, order.OpenQuantity(), curr)
+		ob.AddOrder(order)
+		for len(ob.pendingOrders) > 0 {
+			ob.SubmitPendingOrders()
+		}
+	} else {
+		log.Printf("Orderbook: order not found")
+	}
+}
 
-// 	prevQuantity, err := decimal.NewFromString(orderInfo[4])
-// 	prevPrice, err := decimal.NewFromString(orderInfo[5])
-// 	newQuantity, err := decimal.NewFromString(orderInfo[6])
-// 	newPrice, err := decimal.NewFromString(orderInfo[7])
-
-// 	if err != nil {
-// 		fmt.Println("Failed modifying order")
-// 		return
-// 	}
-
-// }
+// Cancel, Symbol, Side, Price, Order ID
+func (ob *OrderBook) Cancel(orderInfo []string) {
+	symbol := strings.ToUpper(orderInfo[1])
+	if symbol != ob.symbol {
+		log.Println("Symbol mismatch:", symbol, ob.symbol)
+		return
+	}
+	isBuy := strings.ToUpper(orderInfo[2]) == "BUY" || strings.ToUpper(orderInfo[2]) == "BID"
+	price, err := decimal.NewFromString(orderInfo[3])
+	if err != nil {
+		log.Println("Failed parsing order price:", err)
+		return
+	}
+	orderId := orderInfo[4]
+	if order, ok := ob.Get(isBuy, price, orderId); ok {
+		sizeDelta := order.OpenQuantity()
+		order.ModifyQuantity(order.Quantity().Sub(sizeDelta), time.Now())
+		ot := ob.asks
+		if isBuy {
+			ot = ob.bids
+		}
+		ot.Remove(&Price{price, isBuy}, orderId)
+		ob.AddOrder(order)
+	} else {
+		log.Printf("Orderbook: order not found")
+	}
+}

@@ -95,9 +95,9 @@ func (o *Order) ModifyPrice(newPrice decimal.Decimal, currTime time.Time) {
 
 func (o *Order) ModifyQuantity(newQuantity decimal.Decimal, currTime time.Time) {
 	delta := newQuantity.Sub(o.quantity)
+	// if the reduction in quantity is greater than the open quantity, need to cancel the order
 	if o.openQuantity.Add(delta).LessThan(decimal.Zero) {
-		print("Order: Change quantity exceeds open quantity")
-		return
+		delta = o.openQuantity.Neg()
 	}
 	o.openQuantity = o.openQuantity.Add(delta)
 	o.quantity = newQuantity
