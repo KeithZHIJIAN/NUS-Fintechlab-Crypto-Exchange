@@ -319,12 +319,12 @@ func (ob *OrderBook) Cancel(orderInfo []string) {
 		return
 	}
 	isBuy := strings.ToUpper(orderInfo[2]) == "BUY" || strings.ToUpper(orderInfo[2]) == "BID"
-	price, err := decimal.NewFromString(orderInfo[3])
+	price, err := decimal.NewFromString(orderInfo[4])
 	if err != nil {
 		log.Println("Failed parsing order price:", err)
 		return
 	}
-	orderId := orderInfo[4]
+	orderId := orderInfo[3]
 	if order, ok := ob.Get(isBuy, price, orderId); ok {
 		sizeDelta := order.OpenQuantity()
 		order.ModifyQuantity(order.Quantity().Sub(sizeDelta), time.Now())
