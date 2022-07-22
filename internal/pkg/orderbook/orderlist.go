@@ -1,4 +1,4 @@
-package main
+package orderbook
 
 import (
 	"github.com/emirpasic/gods/maps/linkedhashmap"
