@@ -7,13 +7,15 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+var SYMBOLS = [...]string{"BTCUSD", "ETHUSD", "XRPUSD"}
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Panicf("%s: %s", msg, err)
 	}
 }
 
-func main() {
+func initForSymbol(symbol string) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -23,17 +25,17 @@ func main() {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"BTCUSD", // name
-		false,    // durable
-		false,    // delete when unused
-		false,    // exclusive
-		false,    // no-wait
-		nil,      // arguments
+		symbol, // name
+		false,  // durable
+		false,  // delete when unused
+		false,  // exclusive
+		false,  // no-wait
+		nil,    // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
 	for price := 50; price < 110; price += 10 {
-		body := fmt.Sprint("add btcusd limit bid 1 ", price, " 1 1")
+		body := fmt.Sprintf("add %s limit bid 1 %d 1 1", symbol, price)
 		err = ch.Publish(
 			"",     // exchange
 			q.Name, // routing key
@@ -47,7 +49,7 @@ func main() {
 
 	}
 	for price := 110; price < 160; price += 10 {
-		body := fmt.Sprint("add btcusd limit ask 1 ", price, " 3 3")
+		body := fmt.Sprintf("add %s limit ask 1 %d 3 3", symbol, price)
 		err = ch.Publish(
 			"",
 			q.Name,
@@ -61,7 +63,7 @@ func main() {
 
 	}
 
-	body := "add btcusd limit ask 1 100 2 2"
+	body := fmt.Sprintf("add %s limit ask 1 100 2 2", symbol)
 	err = ch.Publish(
 		"", // exchange
 
@@ -73,5 +75,11 @@ func main() {
 			Body:        []byte(body),
 		})
 	failOnError(err, "Failed to publish a message")
-	fmt.Println("Order Book initialized")
+	fmt.Println(symbol, " Order Book initialized")
+}
+
+func main() {
+	for _, symbol := range SYMBOLS {
+		initForSymbol(symbol)
+	}
 }
