@@ -100,7 +100,7 @@ func (o *Order) ModifyQuantity(newQuantity decimal.Decimal, currTime time.Time) 
 		delta = o.openQuantity.Neg()
 	}
 	o.openQuantity = o.openQuantity.Add(delta)
-	o.quantity = newQuantity
+	o.quantity = o.quantity.Add(delta)
 	o.updateTime = currTime
 }
 
