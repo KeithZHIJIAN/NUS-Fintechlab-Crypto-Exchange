@@ -71,6 +71,28 @@ func CreateOpenOrder(isBuy bool, orderId, wallerId, userId, symbol string, price
 	}
 }
 
+func CreateMarketHistory(symbol string, curr time.Time, high, low, open, close, volume, vwap decimal.Decimal, trades int) {
+	time := curr.Format("2006-01-02 15:04:05")
+	query := fmt.Sprintf(`INSERT INTO MARKET_HISTORY_%s (TIME, HIGH, LOW, OPEN, CLOSE, VOLUME, VWAP, NUM_TRADES)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`, symbol)
+	_, err := db.Exec(query, time, high, low, open, close, volume, vwap, trades)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func UpdateMarketHistory(symbol, curr string, high, low, open, close, volume, vwap decimal.Decimal, trades int) {
+	query := fmt.Sprintf(`INSERT INTO MARKET_HISTORY_%s (TIME, HIGH, LOW, OPEN, CLOSE, VOLUME, VWAP, NUM_TRADES) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+	ON CONFLICT (TIME) 
+	DO UPDATE SET HIGH = $2, LOW = $3, OPEN = $4, CLOSE = $5, VOLUME = $6, VWAP = $7, NUM_TRADES = $8;`, symbol)
+
+	_, err := db.Exec(query, curr, high, low, open, close, volume, vwap, trades)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func UpdateOrder(symbol, orderId string, isBuy bool, price, quantity, openQuantity decimal.Decimal, curr time.Time) {
 	side := "ASK"
 	if isBuy {

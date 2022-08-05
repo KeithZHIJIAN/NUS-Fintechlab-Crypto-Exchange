@@ -9,25 +9,48 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const unit = time.Minute
+
 type OrderBook struct {
 	symbol        string
 	asks          *OrderTree
 	bids          *OrderTree
 	pendingOrders []*Order
 	marketPrice   decimal.Decimal
+	high          decimal.Decimal
+	low           decimal.Decimal
+	close         decimal.Decimal
+	open          decimal.Decimal
+	volume        decimal.Decimal
+	vwap          decimal.Decimal
+	trades        int
 }
 
 func NewOrderBook(symbol string) *OrderBook {
-	return &OrderBook{
+	ob := &OrderBook{
 		symbol:        symbol,
 		asks:          NewOrderTree(),
 		bids:          NewOrderTree(),
 		pendingOrders: make([]*Order, 0),
 		marketPrice:   decimal.Zero,
+		high:          decimal.NewFromFloat(100),
+		low:           decimal.NewFromFloat(100),
+		close:         decimal.NewFromFloat(100),
+		open:          decimal.NewFromFloat(100),
+		volume:        decimal.Zero,
+		vwap:          decimal.Zero,
+		trades:        0,
 	}
+
+	return ob
+}
+
+func (ob *OrderBook) Symbol() string {
+	return ob.symbol
 }
 
 func (ob *OrderBook) Start() {
+	go ob.startMarketHistoryAgent()
 	Listen(ob)
 }
 
@@ -187,6 +210,8 @@ func (ob *OrderBook) AddTradeRecord(buyer, seller, outbound *Order, crossPrice, 
 	buyer.Fill(crossPrice, fillQty, curr)
 	seller.Fill(crossPrice, fillQty, curr)
 	ob.FillOrderList(outbound, fillQty)
+	ob.UpdateMarket(crossPrice, fillQty)
+	// UpdateOrderFilled(ob.OrderFilledString(curr, crossPrice, fillQty))
 	CreateTradeRecord(buyer.Symbol(), buyer.ID(), seller.ID(), crossPrice, fillQty, curr)
 	UpdateOrder(buyer.Symbol(), buyer.ID(), buyer.IsBuy(), buyer.Price(), buyer.Quantity(), buyer.OpenQuantity(), curr)
 	UpdateOrder(seller.Symbol(), seller.ID(), seller.IsBuy(), seller.Price(), seller.Quantity(), seller.OpenQuantity(), curr)
@@ -338,3 +363,61 @@ func (ob *OrderBook) Cancel(orderInfo []string) {
 		log.Printf("Orderbook: order not found")
 	}
 }
+
+func (ob *OrderBook) startMarketHistoryAgent() {
+	currentTime := time.Now()
+	startTime := currentTime.Truncate(unit).Add(unit)
+
+	duration := startTime.Sub(currentTime)
+	time.Sleep(duration)
+
+	ticker := time.NewTicker(1 * unit)
+	for {
+		select {
+		case curr := <-ticker.C:
+			// do stuff
+			ob.InitCandlestick()
+			UpdateMarket(ob)
+			CreateMarketHistory(ob.symbol, curr, ob.high, ob.low, ob.open, ob.close, ob.volume, ob.vwap, ob.trades)
+		}
+	}
+}
+
+func (ob *OrderBook) UpdateMarket(price, qty decimal.Decimal) {
+	//vwap calculation
+	if qty.Equal(decimal.Zero) {
+		ob.vwap = decimal.Zero
+	} else {
+		ob.vwap = (ob.vwap.Mul(ob.volume).Add(price.Mul(qty))).Div(ob.volume.Add(qty))
+	}
+	if qty.GreaterThan(decimal.Zero) {
+		ob.trades++
+	}
+	ob.close = price
+	ob.volume = ob.volume.Add(qty)
+	if price.GreaterThan(ob.high) {
+		ob.high = price
+	} else if price.LessThan(ob.low) {
+		ob.low = price
+	}
+	UpdateMarket(ob)
+
+	UpdateMarketHistory(ob.symbol, time.Now().Format("2006-01-02 15:04"), ob.high, ob.low, ob.open, ob.close, ob.volume, ob.vwap, ob.trades)
+}
+
+func (ob *OrderBook) InitCandlestick() {
+	ob.open = ob.close
+	ob.high = ob.close
+	ob.low = ob.close
+	ob.volume = decimal.Zero
+	ob.vwap = decimal.Zero
+	ob.trades = 0
+}
+
+func (ob *OrderBook) UpdateMarketString() string {
+	return fmt.Sprintf("{\"updateMarketHistory\":{ \"time\":\"%v\", \"open\":%s, \"high\":%s, \"low\":%s, \"close\":%s, \"volume\":%s }}", time.Now().UnixMilli(), ob.open, ob.high, ob.low, ob.close, ob.volume)
+}
+
+// func (ob *OrderBook) OrderFilledString(curr time.Time, price, qty decimal.Decimal) string {
+// 	return fmt.Sprintf("{\"newOrderFilled\":{\"time\": \"%d\", \"symbol\": \"%s\", \"quantity\": %s, \"price\": %s}}", curr.Unix(), ob.symbol, qty, price)
+// }

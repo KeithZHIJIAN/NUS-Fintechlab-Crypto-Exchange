@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"fmt"
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -61,10 +62,11 @@ func Listen(ob *OrderBook) {
 var prevAsks = ""
 
 func UpdateAskOrder(ob *OrderBook) {
-	if prevAsks == ob.asks.UpdateString() {
+	str := ob.asks.UpdateString()
+	if prevAsks == str {
 		return
 	}
-	exchange := "UPDATE_ASK_ORDER_" + ob.symbol + ".DLQ.Exchange"
+	exchange := fmt.Sprintf("UPDATE_ASK_ORDER_%s.DLQ.Exchange", ob.symbol)
 
 	err := ch.ExchangeDeclare(
 		exchange, // name
@@ -84,19 +86,20 @@ func UpdateAskOrder(ob *OrderBook) {
 		false,    // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Body:        []byte(ob.asks.UpdateString()),
+			Body:        []byte(str),
 		})
-	prevAsks = ob.asks.UpdateString()
+	prevAsks = str
 	failOnError(err, "Failed to publish a message")
 }
 
 var prevBids = ""
 
 func UpdateBidOrder(ob *OrderBook) {
-	if prevBids == ob.bids.UpdateString() {
+	str := ob.bids.UpdateString()
+	if prevBids == str {
 		return
 	}
-	exchange := "UPDATE_BID_ORDER_" + ob.symbol + ".DLQ.Exchange"
+	exchange := fmt.Sprintf("UPDATE_BID_ORDER_%s.DLQ.Exchange", ob.symbol)
 
 	err := ch.ExchangeDeclare(
 		exchange, // name
@@ -116,8 +119,63 @@ func UpdateBidOrder(ob *OrderBook) {
 		false,    // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Body:        []byte(ob.bids.UpdateString()),
+			Body:        []byte(str),
 		})
-	prevBids = ob.bids.UpdateString()
+	prevBids = str
 	failOnError(err, "Failed to publish a message")
+}
+
+// func UpdateOrderFilled(str string) {
+// 	exchange := "NEW_ORDER_FILLED.DLQ.Exchange"
+
+// 	err := ch.ExchangeDeclare(
+// 		exchange, // name
+// 		"fanout", // type
+// 		false,    // durable
+// 		false,    // auto-deleted
+// 		false,    // internal
+// 		false,    // no-wait
+// 		nil,      // arguments
+// 	)
+// 	failOnError(err, "Failed to declare an exchange")
+
+// 	err = ch.Publish(
+// 		exchange, // exchange
+// 		"",       // routing key
+// 		false,    // mandatory
+// 		false,    // immediate
+// 		amqp.Publishing{
+// 			ContentType: "text/plain",
+// 			Body:        []byte(str),
+// 		})
+// 	failOnError(err, "Failed to publish a message")
+// 	fmt.Println("Message sent: ", str)
+// }
+
+func UpdateMarket(ob *OrderBook) {
+	msg := ob.UpdateMarketString()
+	exchange := fmt.Sprintf("MARKET_HISTORY_%s.DLQ.Exchange", ob.symbol)
+
+	err := ch.ExchangeDeclare(
+		exchange, // name
+		"fanout", // type
+		false,    // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
+	err = ch.Publish(
+		exchange, // exchange
+		"",       // routing key
+		false,    // mandatory
+		false,    // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(msg),
+		})
+	failOnError(err, "Failed to publish a message")
+	fmt.Println("Message sent: ", msg)
 }

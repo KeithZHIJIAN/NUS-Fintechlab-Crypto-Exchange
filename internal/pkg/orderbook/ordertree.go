@@ -94,7 +94,7 @@ func (ot *OrderTree) UpdateString() string {
 		} else {
 			str = fmt.Sprintf("{\"price\": %s, \"openquantity\": %s}, ", price, OTiter.Value().(*OrderList).Quantity()) + str
 		}
-		cnt += 1
+		cnt++
 	}
 
 	if isBuy {
