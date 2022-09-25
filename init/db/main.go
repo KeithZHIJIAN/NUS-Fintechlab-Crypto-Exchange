@@ -16,6 +16,8 @@ var TABLES = [...]string{
 	"users",
 	"wallet",
 	"wallet_assets",
+	"contests",
+	"user_contests",
 	"closed_orders_btcusd",
 	"closed_orders_ethusd",
 	"closed_orders_xrpusd",
