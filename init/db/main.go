@@ -1,13 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/KeithZHIJIAN/nce-matchingengine/utils"
 	_ "github.com/lib/pq"
 )
 
@@ -34,24 +32,7 @@ var TABLES = [...]string{
 	"order_fillings_ethusd",
 	"order_fillings_xrpusd"}
 
-func connectDB() *sql.DB {
-	err := godotenv.Load(".env")
-
-	if err != nil {
-		panic(err)
-	}
-	psqlInfo := os.Getenv("DATABASE_URL")
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-	return db
-}
-
 func executeSqlScript(filepath string) {
-	db := connectDB()
-	defer db.Close()
-
 	sqlFile := filepath
 	query, err := ioutil.ReadFile(sqlFile)
 	if err != nil {
@@ -67,7 +48,7 @@ func executeSqlScript(filepath string) {
 		}
 		sqlCommand += query + "\n"
 		if strings.HasSuffix(query, ";") {
-			_, err := db.Exec(sqlCommand)
+			_, err := utils.DB.Exec(sqlCommand)
 			if err != nil {
 				panic(err)
 			}
@@ -77,12 +58,9 @@ func executeSqlScript(filepath string) {
 }
 
 func dropAllTables() {
-	db := connectDB()
-	defer db.Close()
-
 	for _, table := range TABLES {
 		query := "DROP TABLE IF EXISTS " + table + " CASCADE"
-		_, err := db.Exec(query)
+		_, err := utils.DB.Exec(query)
 		if err != nil {
 			panic(err)
 		}
@@ -90,11 +68,8 @@ func dropAllTables() {
 }
 
 func addSymbol(symbol string) {
-	db := connectDB()
-	defer db.Close()
-
 	query := "INSERT INTO symbol (symbol) VALUES ($1)"
-	_, err := db.Exec(query, symbol)
+	_, err := utils.DB.Exec(query, symbol)
 	if err != nil {
 		panic(err)
 	}
@@ -114,7 +89,7 @@ func addSymbol(symbol string) {
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
 		);`
-	_, err = db.Exec(query)
+	_, err = utils.DB.Exec(query)
 	if err != nil {
 		panic(err)
 	}
@@ -134,7 +109,7 @@ func addSymbol(symbol string) {
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
 		);`
-	_, err = db.Exec(query)
+	_, err = utils.DB.Exec(query)
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +130,7 @@ func addSymbol(symbol string) {
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
 		);`
-	_, err = db.Exec(query)
+	_, err = utils.DB.Exec(query)
 	if err != nil {
 		panic(err)
 	}
@@ -170,7 +145,7 @@ func addSymbol(symbol string) {
 		TIME  		timestamp without time zone 	NOT NULL,
 		PRIMARY KEY(MATCHID)
 		);`
-	_, err = db.Exec(query)
+	_, err = utils.DB.Exec(query)
 	if err != nil {
 		panic(err)
 	}
@@ -186,7 +161,7 @@ func addSymbol(symbol string) {
 		NUM_TRADES 	INTEGER 			NOT NULL	DEFAULT 0,
 		PRIMARY KEY(TIME)
 		);`
-	_, err = db.Exec(query)
+	_, err = utils.DB.Exec(query)
 	if err != nil {
 		panic(err)
 	}
