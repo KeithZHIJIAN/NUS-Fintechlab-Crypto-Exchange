@@ -13,19 +13,38 @@ import (
 
 const unit = time.Minute
 
+var UpdateMarketChan = make(chan *MarketInfo)
+
+type MarketInfo struct {
+	MarketPrice decimal.Decimal `json:"MarketPrice"`
+	High        decimal.Decimal `json:"High"`
+	Low         decimal.Decimal `json:"Low"`
+	Close       decimal.Decimal `json:"Close"`
+	Open        decimal.Decimal `json:"Open"`
+	Volume      decimal.Decimal `json:"Volume"`
+	Vwap        decimal.Decimal `json:"Vwap"`
+	Trades      int             `json:"Trades"`
+}
+
 type OrderBook struct {
 	symbol        string
 	asks          *OrderTree
 	bids          *OrderTree
 	pendingOrders []*Order
-	marketPrice   decimal.Decimal
-	high          decimal.Decimal
-	low           decimal.Decimal
-	close         decimal.Decimal
-	open          decimal.Decimal
-	volume        decimal.Decimal
-	vwap          decimal.Decimal
-	trades        int
+	marketInfo    *MarketInfo
+}
+
+func NewMarketInfo() *MarketInfo {
+	return &MarketInfo{
+		MarketPrice: decimal.Zero,
+		High:        decimal.NewFromFloat(100),
+		Low:         decimal.NewFromFloat(100),
+		Close:       decimal.NewFromFloat(100),
+		Open:        decimal.NewFromFloat(100),
+		Volume:      decimal.Zero,
+		Vwap:        decimal.Zero,
+		Trades:      0,
+	}
 }
 
 func NewOrderBook(symbol string) *OrderBook {
@@ -34,14 +53,7 @@ func NewOrderBook(symbol string) *OrderBook {
 		asks:          NewOrderTree(),
 		bids:          NewOrderTree(),
 		pendingOrders: make([]*Order, 0),
-		marketPrice:   decimal.Zero,
-		high:          decimal.NewFromFloat(100),
-		low:           decimal.NewFromFloat(100),
-		close:         decimal.NewFromFloat(100),
-		open:          decimal.NewFromFloat(100),
-		volume:        decimal.Zero,
-		vwap:          decimal.Zero,
-		trades:        0,
+		marketInfo:    NewMarketInfo(),
 	}
 
 	return ob
@@ -88,11 +100,11 @@ func (ob *OrderBook) Apply(msg string) {
 }
 
 func (ob *OrderBook) MarketPrice() decimal.Decimal {
-	return ob.marketPrice
+	return ob.marketInfo.MarketPrice
 }
 
 func (ob *OrderBook) SetMarketPrice(price decimal.Decimal) {
-	ob.marketPrice = price
+	ob.marketInfo.MarketPrice = price
 }
 
 func (ob *OrderBook) SubmitPendingOrders() {
@@ -242,7 +254,7 @@ func (ob *OrderBook) ComputeCrossPrice(inbound, outbound *Order) decimal.Decimal
 	}
 
 	if crossPrice.Equal(decimal.Zero) {
-		crossPrice = ob.marketPrice
+		crossPrice = ob.marketInfo.MarketPrice
 	}
 
 	return crossPrice
@@ -380,44 +392,45 @@ func (ob *OrderBook) startMarketHistoryAgent() {
 			// do stuff
 			ob.InitCandlestick()
 			ob.UpdateMarketSubscription()
-			utils.CreateMarketHistory(ob.symbol, curr, ob.high, ob.low, ob.open, ob.close, ob.volume, ob.vwap, ob.trades)
+			utils.CreateMarketHistory(ob.symbol, curr, ob.marketInfo.High, ob.marketInfo.Low, ob.marketInfo.Open, ob.marketInfo.Close, ob.marketInfo.Volume, ob.marketInfo.Vwap, ob.marketInfo.Trades)
 		}
 	}
 }
 
 func (ob *OrderBook) UpdateMarket(price, qty decimal.Decimal) {
-	//vwap calculation
+	//Vwap calculation
+
 	if qty.Equal(decimal.Zero) {
-		ob.vwap = decimal.Zero
+		ob.marketInfo.Vwap = decimal.Zero
 	} else {
-		ob.vwap = (ob.vwap.Mul(ob.volume).Add(price.Mul(qty))).Div(ob.volume.Add(qty))
+		ob.marketInfo.Vwap = (ob.marketInfo.Vwap.Mul(ob.marketInfo.Volume).Add(price.Mul(qty))).Div(ob.marketInfo.Volume.Add(qty))
 	}
 	if qty.GreaterThan(decimal.Zero) {
-		ob.trades++
+		ob.marketInfo.Trades++
 	}
-	ob.close = price
-	ob.volume = ob.volume.Add(qty)
-	if price.GreaterThan(ob.high) {
-		ob.high = price
-	} else if price.LessThan(ob.low) {
-		ob.low = price
+	ob.marketInfo.Close = price
+	ob.marketInfo.Volume = ob.marketInfo.Volume.Add(qty)
+	if price.GreaterThan(ob.marketInfo.High) {
+		ob.marketInfo.High = price
+	} else if price.LessThan(ob.marketInfo.Low) {
+		ob.marketInfo.Low = price
 	}
 	ob.UpdateMarketSubscription()
 
-	utils.UpdateMarketHistory(ob.symbol, time.Now().Format("2006-01-02 15:04"), ob.high, ob.low, ob.open, ob.close, ob.volume, ob.vwap, ob.trades)
+	utils.UpdateMarketHistory(ob.symbol, time.Now().Format("2006-01-02 15:04"), ob.marketInfo.High, ob.marketInfo.Low, ob.marketInfo.Open, ob.marketInfo.Close, ob.marketInfo.Volume, ob.marketInfo.Vwap, ob.marketInfo.Trades)
 }
 
 func (ob *OrderBook) InitCandlestick() {
-	ob.open = ob.close
-	ob.high = ob.close
-	ob.low = ob.close
-	ob.volume = decimal.Zero
-	ob.vwap = decimal.Zero
-	ob.trades = 0
+	ob.marketInfo.Open = ob.marketInfo.Close
+	ob.marketInfo.High = ob.marketInfo.Close
+	ob.marketInfo.Low = ob.marketInfo.Close
+	ob.marketInfo.Volume = decimal.Zero
+	ob.marketInfo.Vwap = decimal.Zero
+	ob.marketInfo.Trades = 0
 }
 
 func (ob *OrderBook) UpdateMarketString() string {
-	return fmt.Sprintf("{\"updateMarketHistory\":{ \"time\":\"%v\", \"open\":%s, \"high\":%s, \"low\":%s, \"close\":%s, \"volume\":%s }}", time.Now().UnixMilli(), ob.open, ob.high, ob.low, ob.close, ob.volume)
+	return fmt.Sprintf("{\"updateMarketHistory\":{ \"time\":\"%v\", \"Open\":%s, \"High\":%s, \"Low\":%s, \"Close\":%s, \"Volume\":%s }}", time.Now().UnixMilli(), ob.marketInfo.Open, ob.marketInfo.High, ob.marketInfo.Low, ob.marketInfo.Close, ob.marketInfo.Volume)
 }
 
 func (ob *OrderBook) Listen() {
@@ -460,6 +473,7 @@ func (ob *OrderBook) UpdateBidOrder() {
 }
 
 func (ob *OrderBook) UpdateMarketSubscription() {
+	UpdateMarketChan <- ob.marketInfo
 	msg := ob.UpdateMarketString()
 	exchange := fmt.Sprintf("MARKET_HISTORY_%s.DLQ.Exchange", ob.symbol)
 	utils.RabbitmqSend(exchange, msg)
