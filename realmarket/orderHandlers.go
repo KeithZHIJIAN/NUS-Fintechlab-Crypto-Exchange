@@ -1,6 +1,7 @@
 package realmarket
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -183,6 +184,13 @@ func modifyOrderHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if requestBody.NewQuantity.IsZero() {
+		if err := cancelOrder(strings.ToUpper(requestBody.Symbol), requestBody.OrderID, strings.ToUpper(requestBody.Side) == "BUY", requestBody.NewPrice); err != nil {
+			log.Println("[websocket server]: Cancel order failed, error: ", err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
 	if err := modifyOrder(strings.ToUpper(requestBody.Symbol), requestBody.OrderID, strings.ToUpper(requestBody.Side) == "BUY", requestBody.NewQuantity, requestBody.NewPrice, requestBody.PrevQuantity, requestBody.PrevPrice); err != nil {
 		log.Println("[websocket server]: Modify order failed, error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -221,12 +229,71 @@ func parseOrder(req *RequestBody) *orderbook.Order {
 	return orderbook.NewOrder(symbol, ownerId, walletId, isBuy, quantity, price, curr, curr)
 }
 
+type ClosedOrder struct {
+	ID        string          `json:"orderid"`
+	Action    string          `json:"action"`
+	Quantity  decimal.Decimal `json:"quantity"`
+	Price     decimal.Decimal `json:"price"`
+	FillPrice decimal.Decimal `json:"fill_price"`
+	CreatedAt time.Time       `json:"created_at"`
+	FilledAt  time.Time       `json:"filled_at"`
+}
+
+type Orders struct {
+	Asks   []OpenOrder   `json:"asks"`
+	Bids   []OpenOrder   `json:"bids"`
+	Closed []ClosedOrder `json:"closed"`
+}
+
+type OpenOrder struct {
+	ID           string          `json:"orderid"`
+	Quantity     decimal.Decimal `json:"quantity"`
+	Price        decimal.Decimal `json:"price"`
+	OpenQuantity decimal.Decimal `json:"open_quantity"`
+	FillCost     decimal.Decimal `json:"fill_cost"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
 // symbol ownerid
-func getOpenOrderHandler(c *gin.Context) {
-	var requestBody RequestBody
-	if err := c.BindJSON(&requestBody); err != nil {
-		log.Println("[websocket server]: Get open order bind JSON failed, error: ", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+func getOrderHandler(c *gin.Context) {
+	symbol := c.Query("symbol")
+	ownerID := c.Query("owner_id")
+	orders := &Orders{}
+	rows := utils.ReadOpenAskOrderBySymbolAndOwnerID(symbol, ownerID)
+	orders.Asks = make([]OpenOrder, 0)
+	for rows.Next() {
+		openOrder := OpenOrder{}
+		//orderid, quantity, price, openquantity, fillcost, createdat, updatedat
+		if err := rows.Scan(&openOrder.ID, &openOrder.Quantity, &openOrder.Price, &openOrder.OpenQuantity,
+			&openOrder.FillCost, &openOrder.CreatedAt, &openOrder.UpdatedAt); err != nil {
+			panic(fmt.Errorf(err.Error()))
+		}
+		orders.Asks = append(orders.Asks, openOrder)
 	}
+
+	rows = utils.ReadOpenBidOrderBySymbolAndOwnerID(symbol, ownerID)
+	orders.Bids = make([]OpenOrder, 0)
+	for rows.Next() {
+		openOrder := OpenOrder{}
+		//orderid, quantity, price, openquantity, fillcost, createdat, updatedat
+		if err := rows.Scan(&openOrder.ID, &openOrder.Quantity, &openOrder.Price, &openOrder.OpenQuantity,
+			&openOrder.FillCost, &openOrder.CreatedAt, &openOrder.UpdatedAt); err != nil {
+			panic(fmt.Errorf(err.Error()))
+		}
+		orders.Bids = append(orders.Bids, openOrder)
+	}
+
+	rows = utils.ReadClosedOrderBySymbolAndOwnerID(symbol, ownerID)
+	for rows.Next() {
+		closedOrder := ClosedOrder{}
+		//orderid, quantity, price, openquantity, fillcost, createdat, updatedat
+		if err := rows.Scan(&closedOrder.ID, &closedOrder.Action,
+			&closedOrder.Quantity, &closedOrder.Price, &closedOrder.FillPrice,
+			&closedOrder.CreatedAt, &closedOrder.FilledAt); err != nil {
+			panic(fmt.Errorf(err.Error()))
+		}
+		orders.Closed = append(orders.Closed, closedOrder)
+	}
+	c.JSON(http.StatusOK, *orders)
 }

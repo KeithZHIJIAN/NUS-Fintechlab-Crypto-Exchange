@@ -408,18 +408,38 @@ func updateAskOrder(txn *sql.Tx, symbol, orderID string, price, quantity decimal
 	}
 }
 
-// func ReadOpenAskOrderBySymbolAndOwnerID(symbol, ownerID string) {
-// 	query := fmt.Sprintf("SELECT orderid, quantity, price, openquantity, fillcost, createdat, updatedat FROM OPEN_ASK_ORDERS_%s WHERE owner = $1", symbol)
-// 	rows, err := DB.Query(query, ownerID)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
+func ReadHistoricalMarket(symbol string) *sql.Rows {
+	query := fmt.Sprintf("SELECT * FROM MARKET_HISTORY_%s ORDER BY TIME DESC LIMIT 3600", symbol)
+	rows, err := DB.Query(query)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
 
-// func ReadOpenBidOrderBySymbolAndOwnerID(symbol, ownerID string) {
-// 	query := fmt.Sprintf("SELECT orderid, quantity, price, openquantity, fillcost, createdat, updatedat FROM OPEN_BID_ORDERS_%s WHERE owner = $1", symbol)
-// 	rows, err := DB.Query(query, ownerID)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
+func ReadOpenAskOrderBySymbolAndOwnerID(symbol, ownerID string) *sql.Rows {
+	query := fmt.Sprintf("SELECT orderid, quantity, price, openquantity, fillcost, createdat, updatedat FROM OPEN_ASK_ORDERS_%s WHERE owner = $1", symbol)
+	rows, err := DB.Query(query, ownerID)
+	if err != nil {
+		panic(err)
+	}
+	return rows
+}
+
+func ReadOpenBidOrderBySymbolAndOwnerID(symbol, ownerID string) *sql.Rows {
+	query := fmt.Sprintf("SELECT orderid, quantity, price, openquantity, fillcost, createdat, updatedat FROM OPEN_BID_ORDERS_%s WHERE owner = $1", symbol)
+	rows, err := DB.Query(query, ownerID)
+	if err != nil {
+		panic(err)
+	}
+	return rows
+}
+
+func ReadClosedOrderBySymbolAndOwnerID(symbol, ownerID string) *sql.Rows {
+	query := fmt.Sprintf("SELECT orderid, buyside, quantity, price, fillprice, createdat, filledat FROM CLOSED_ORDERS_%s WHERE owner = $1", symbol)
+	rows, err := DB.Query(query, ownerID)
+	if err != nil {
+		panic(err)
+	}
+	return rows
+}

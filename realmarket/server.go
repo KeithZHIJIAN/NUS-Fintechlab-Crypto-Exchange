@@ -12,6 +12,6 @@ func WebsocketServerStart() {
 	r.POST("/order", CORSMiddleware(), addOrderHandler)
 	r.PUT("/order", CORSMiddleware(), modifyOrderHandler)
 	r.DELETE("/order", CORSMiddleware(), cancelOrderHandler)
-	r.GET("/order/open", CORSMiddleware(), getOpenOrderHandler)
+	r.GET("/order", CORSMiddleware(), getOrderHandler)
 	r.Run(":8000") // listen and serve on localhost:8000
 }

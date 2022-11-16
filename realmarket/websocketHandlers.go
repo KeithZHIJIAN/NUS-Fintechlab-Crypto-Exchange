@@ -82,7 +82,20 @@ func realMarketHistoryHandler(c *gin.Context) {
 	}
 	marketHistoryMsg.Symbol = res.ProductID
 	marketHistoryMsg.Type = "snapshot"
-	marketHistoryMsg.MarketHistory = getHistoricalMarket(res.ProductID)
+	MarketHistory := make([]Candlestick, 0)
+	rows := utils.ReadHistoricalMarket(res.ProductID)
+	for rows.Next() {
+		mhr := Candlestick{}
+		if err := rows.Scan(&mhr.Time, &mhr.Open, &mhr.Close,
+			&mhr.High, &mhr.Low, &mhr.Vol); err != nil {
+			panic(fmt.Errorf(err.Error()))
+		}
+		MarketHistory = append(MarketHistory, mhr)
+	}
+	if err = rows.Err(); err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	marketHistoryMsg.MarketHistory = MarketHistory
 	marketHistoryLock.Lock()
 	err = ws.WriteJSON(marketHistoryMsg)
 	marketHistoryLock.Unlock()
@@ -158,25 +171,4 @@ var upgrader = websocket.Upgrader{
 		origin := r.Header.Get("Origin")
 		return origin == "http://localhost:3000"
 	},
-}
-
-func getHistoricalMarket(symbol string) []Candlestick {
-	MarketHistory := make([]Candlestick, 0)
-	query := fmt.Sprintf("SELECT * FROM MARKET_HISTORY_%s ORDER BY TIME DESC LIMIT 10", symbol)
-	rows, err := utils.DB.Query(query)
-	if err != nil {
-		panic(fmt.Errorf(err.Error()))
-	}
-	for rows.Next() {
-		mhr := Candlestick{}
-		if err := rows.Scan(&mhr.Time, &mhr.Open, &mhr.Close,
-			&mhr.High, &mhr.Low, &mhr.Vol); err != nil {
-			panic(fmt.Errorf(err.Error()))
-		}
-		MarketHistory = append(MarketHistory, mhr)
-	}
-	if err = rows.Err(); err != nil {
-		panic(fmt.Errorf(err.Error()))
-	}
-	return MarketHistory
 }

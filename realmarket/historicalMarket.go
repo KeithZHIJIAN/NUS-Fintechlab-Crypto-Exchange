@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -18,9 +19,9 @@ const FiveHours = 18000
 func HistoricalMarketAgentStart() {
 	// 18000 = 300min
 	forever := make(chan interface{})
-	fmt.Println("Loading Real Market History...")
 	go loadMarketHistory("BTCUSD")
 	go loadMarketHistory("ETHUSD")
+	log.Println("HistoricalMarketAgent: Market history websocket connection estbalished")
 	<-forever
 }
 
