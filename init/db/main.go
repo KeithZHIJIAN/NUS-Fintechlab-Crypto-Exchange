@@ -30,7 +30,23 @@ var TABLES = [...]string{
 	"open_bid_orders_xrpusd",
 	"order_fillings_btcusd",
 	"order_fillings_ethusd",
-	"order_fillings_xrpusd"}
+	"order_fillings_xrpusd",
+	"topups",
+}
+
+var INDEXES = [...]string{
+	"idx_topups_id",
+	"idx_wallet_assets_id_symbol",
+	"idx_users_id",
+	"idx_open_bid_orders_btcusd_owner_orderid",
+	"idx_open_bid_orders_ethusd_owner_orderid",
+	"idx_open_ask_orders_btcusd_owner_orderid",
+	"idx_open_ask_orders_ethusd_owner_orderid",
+	"idx_closed_orders_btcusd_owner",
+	"idx_closed_orders_ethusd_owner",
+	"idx_market_history_btcusd_time",
+	"idx_market_history_ethusd_time",
+}
 
 func executeSqlScript(filepath string) {
 	sqlFile := filepath
@@ -59,7 +75,17 @@ func executeSqlScript(filepath string) {
 
 func dropAllTables() {
 	for _, table := range TABLES {
-		query := "DROP TABLE IF EXISTS " + table + " CASCADE"
+		query := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table)
+		_, err := utils.DB.Exec(query)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func dropAllIndexes() {
+	for _, index := range INDEXES {
+		query := fmt.Sprintf("DROP INDEX IF EXISTS %s CASCADE", index)
 		_, err := utils.DB.Exec(query)
 		if err != nil {
 			panic(err)
@@ -70,9 +96,18 @@ func dropAllTables() {
 func main() {
 	dropAllTables()
 	executeSqlScript("./init/db/CREATE_GLOBAL_TABLES.txt")
-	utils.AddSymbol("btcusd")
-	utils.AddSymbol("ethusd")
-	utils.AddSymbol("xrpusd")
+	err := utils.AddSymbol("btcusd")
+	if err != nil {
+		panic(err)
+	}
+	err = utils.AddSymbol("ethusd")
+	if err != nil {
+		panic(err)
+	}
+	err = utils.AddSymbol("xrpusd")
+	if err != nil {
+		panic(err)
+	}
 	executeSqlScript("./init/db/INIT_ORDERBOOK.txt")
 	fmt.Println("Database initialized!")
 }

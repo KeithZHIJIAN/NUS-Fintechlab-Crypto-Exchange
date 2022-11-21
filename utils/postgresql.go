@@ -56,16 +56,20 @@ func CreateMarketHistoryTable(symbol string) {
 	if err != nil {
 		panic(fmt.Errorf(err.Error()))
 	}
+	query = fmt.Sprintf("CREATE INDEX idx_market_history_%s_time ON MARKET_HISTORY_%s(TIME);", symbol, symbol)
 }
 
-func AddSymbol(symbol string) {
+func createSymbol(txn *sql.Tx, symbol string) error {
 	query := "INSERT INTO symbol (symbol) VALUES ($1)"
-	_, err := DB.Exec(query, symbol)
+	_, err := txn.Exec(query, symbol)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
+}
 
-	query = "CREATE TABLE OPEN_ASK_ORDERS_" + symbol + `(
+func createOpenAskOrderTable(txn *sql.Tx, symbol string) error {
+	query := fmt.Sprintf(`CREATE TABLE OPEN_ASK_ORDERS_%s (
 		ORDERID  	VARCHAR(64) 		NOT NULL,
 		WALLETID  	INTEGER 		    NOT NULL,
 		OWNER  		INTEGER 			NOT NULL,
@@ -79,13 +83,21 @@ func AddSymbol(symbol string) {
 		PRIMARY KEY(ORDERID),
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
-		);`
-	_, err = DB.Exec(query)
+		);`, symbol)
+	_, err := txn.Exec(query)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	query = fmt.Sprintf("CREATE INDEX idx_OPEN_ASK_ORDERS_%s_owner_orderid ON OPEN_ASK_ORDERS_%s(OWNER, ORDERID);", symbol, symbol)
+	_, err = txn.Exec(query)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	query = "CREATE TABLE OPEN_BID_ORDERS_" + symbol + `(
+func createOpenBidOrderTable(txn *sql.Tx, symbol string) error {
+	query := fmt.Sprintf(`CREATE TABLE OPEN_BID_ORDERS_%s (
 		ORDERID  	VARCHAR(64) 		NOT NULL,
 		WALLETID  	INTEGER 		    NOT NULL,
 		OWNER  		INTEGER 			NOT NULL,
@@ -99,13 +111,21 @@ func AddSymbol(symbol string) {
 		PRIMARY KEY(ORDERID),
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
-		);`
-	_, err = DB.Exec(query)
+		);`, symbol)
+	_, err := txn.Exec(query)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	query = fmt.Sprintf("CREATE INDEX idx_OPEN_BID_ORDERS_%s_owner_orderid ON OPEN_BID_ORDERS_%s(OWNER, ORDERID);", symbol, symbol)
+	_, err = txn.Exec(query)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	query = "CREATE TABLE CLOSED_ORDERS_" + symbol + `(
+func createClosedOrderTable(txn *sql.Tx, symbol string) error {
+	query := fmt.Sprintf(`CREATE TABLE CLOSED_ORDERS_%s (
 		ORDERID  	VARCHAR(64) 		NOT NULL,
 		WALLETID  	INTEGER 		    NOT NULL,
 		OWNER  		INTEGER 			NOT NULL,
@@ -120,43 +140,45 @@ func AddSymbol(symbol string) {
 		PRIMARY KEY(ORDERID),
 		FOREIGN KEY (WALLETID) REFERENCES WALLET(WALLETID),
 		FOREIGN KEY (OWNER) REFERENCES USERS(USERID)
-		);`
-	_, err = DB.Exec(query)
+		);`, symbol)
+	_, err := txn.Exec(query)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
-	query = "CREATE TABLE ORDER_FILLINGS_" + symbol + `(
-		MATCHID 	    SERIAL 			NOT NULL,
-		BUYORDERID  	VARCHAR(64),
-		SELLORDERID  VARCHAR(64),
-		SYMBOL  	    VARCHAR(64) 	NOT NULL,
-		PRICE 		DECIMAL(15,5) 	NOT NULL,
-		QUANTITY 	DECIMAL(15,5) 	NOT NULL,
-		TIME  		timestamp without time zone 	NOT NULL,
-		PRIMARY KEY(MATCHID)
-		);`
-	_, err = DB.Exec(query)
+	query = fmt.Sprintf("CREATE INDEX idx_CLOSED_ORDERS_%s_owner ON CLOSED_ORDERS_%s(OWNER);", symbol, symbol)
+	_, err = txn.Exec(query)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
+}
 
-	query = "CREATE TABLE MARKET_HISTORY_" + symbol + `(
-		TIME  		timestamp without time zone 	NOT NULL,
-		OPEN 		DECIMAL(15,5) 		NOT NULL,
-		CLOSE 		DECIMAL(15,5) 		NOT NULL,
-		HIGH 		DECIMAL(15,5) 		NOT NULL,
-		LOW 		    DECIMAL(15,5) 		NOT NULL,
-		VOLUME 		DECIMAL(15,5) 		NOT NULL,
-		VWAP 		DECIMAL(15,5),
-		NUM_TRADES 	INTEGER	DEFAULT 0,
-		PRIMARY KEY(TIME)
-		);`
-	_, err = DB.Exec(query)
+func AddSymbol(symbol string) error {
+	txn, err := DB.Begin()
 	if err != nil {
-		panic(err)
+		return err
 	}
-
+	err = createSymbol(txn, symbol)
+	if err != nil {
+		txn.Rollback()
+		return err
+	}
+	err = createOpenAskOrderTable(txn, symbol)
+	if err != nil {
+		txn.Rollback()
+		return err
+	}
+	err = createOpenBidOrderTable(txn, symbol)
+	if err != nil {
+		txn.Rollback()
+		return err
+	}
+	err = createClosedOrderTable(txn, symbol)
+	if err != nil {
+		txn.Rollback()
+		return err
+	}
+	return txn.Commit()
 }
 
 func DropTable(table string) {
@@ -194,7 +216,7 @@ func createClosedOrder(txn *sql.Tx, isBuy bool, symbol, orderID, walletID, userI
 	}
 }
 
-func lockRows(txn *sql.Tx, userID, walletID, symbol string) {
+func lockBalanceAndAssetRows(txn *sql.Tx, userID, walletID, symbol string) {
 	query := "SELECT * FROM users WHERE userid = $1 FOR UPDATE;"
 	_, err := txn.Exec(query, userID)
 	if err != nil {
@@ -208,7 +230,7 @@ func lockRows(txn *sql.Tx, userID, walletID, symbol string) {
 	}
 }
 
-func updateAssets(txn *sql.Tx, isBuy bool, userID, walletID, symbol string, amount, fillCost decimal.Decimal) {
+func updateBalanceAndAssets(txn *sql.Tx, isBuy bool, userID, walletID, symbol string, amount, fillCost decimal.Decimal) {
 	if isBuy {
 		query := "UPDATE USERS SET locked = (SELECT locked FROM users WHERE userid = $1) - $2 WHERE userid = $1;"
 		_, err := txn.Exec(query, userID, fillCost)
@@ -265,7 +287,7 @@ func CancelOrder(isBuy bool, symbol, orderID, walletID, userID string, quantity,
 	if err != nil {
 		return err
 	}
-	lockRows(txn, userID, walletID, symbol)
+	lockBalanceAndAssetRows(txn, userID, walletID, symbol)
 	if isBuy {
 		rollbackBalance(txn, userID, symbol, quantity.Mul(price))
 	} else {
@@ -282,8 +304,8 @@ func SettleTrade(isBuy bool, symbol, orderID, walletID, userID string, quantity,
 	if err != nil {
 		return err
 	}
-	lockRows(txn, userID, walletID, symbol)
-	updateAssets(txn, isBuy, userID, walletID, symbol, quantity, fillCost)
+	lockBalanceAndAssetRows(txn, userID, walletID, symbol)
+	updateBalanceAndAssets(txn, isBuy, userID, walletID, symbol, quantity, fillCost)
 	deleteOpenOrder(txn, isBuy, symbol, orderID)
 	createClosedOrder(txn, isBuy, symbol, orderID, walletID, userID, quantity, price, fillCost, createdAt, filledAt)
 	return txn.Commit()
@@ -442,4 +464,58 @@ func ReadClosedOrderBySymbolAndOwnerID(symbol, ownerID string) *sql.Rows {
 		panic(err)
 	}
 	return rows
+}
+
+func SettleMarketOrder(isBuy bool, orderID, walletID, userID, symbol string, price, quantity decimal.Decimal, currTime time.Time) error {
+	txn, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	if isBuy {
+		balance := lockBalanceRowAndGet(txn, userID)
+		if balance.GreaterThan(price.Mul(quantity)) {
+			createClosedOrder(txn, isBuy, symbol, orderID, walletID, userID, quantity, price, price.Mul(quantity), currTime, currTime)
+			settleMarketBuy(txn, userID, walletID, symbol, quantity, price)
+		} else {
+			txn.Rollback()
+			return fmt.Errorf("Balance not enough")
+		}
+	} else {
+		asset := lockAssetRowAndGet(txn, walletID, symbol)
+		if asset.GreaterThan(quantity) {
+			createClosedOrder(txn, isBuy, symbol, orderID, walletID, userID, quantity, price, price.Mul(quantity), currTime, currTime)
+			settleMarketSell(txn, userID, walletID, symbol, quantity, price)
+		} else {
+			txn.Rollback()
+			return fmt.Errorf("Asset %s not enough", symbol)
+		}
+	}
+	err = txn.Commit()
+	return err
+}
+
+func settleMarketBuy(txn *sql.Tx, userID, walletID, symbol string, quantity, price decimal.Decimal) {
+	query := "UPDATE users SET balance = (SELECT balance FROM users WHERE userid = $1) - $2 WHERE userid = $1;"
+	_, err := txn.Exec(query, userID, quantity.Mul(price))
+	if err != nil {
+		panic(err)
+	}
+	query = "UPDATE wallet_assets SET amount = (SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2) + $3 WHERE walletid = $1 AND symbol = $2;"
+	_, err = txn.Exec(query, walletID, strings.ToLower(symbol), quantity)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func settleMarketSell(txn *sql.Tx, userID, walletID, symbol string, quantity, price decimal.Decimal) {
+	query := "UPDATE users SET balance = (SELECT balance FROM users WHERE userid = $1) + $2 WHERE userid = $1;"
+	_, err := txn.Exec(query, userID, quantity.Mul(price))
+	if err != nil {
+		panic(err)
+	}
+	query = "UPDATE wallet_assets SET amount = (SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2) - $3 WHERE walletid = $1 AND symbol = $2;"
+	_, err = txn.Exec(query, walletID, strings.ToLower(symbol), quantity)
+	if err != nil {
+		panic(err)
+	}
 }

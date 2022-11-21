@@ -207,11 +207,19 @@ func addOrderHandler(c *gin.Context) {
 		return
 	}
 	order := parseOrder(&requestBody)
-	if err := addOrder(order); err != nil {
+	if order.Price().IsZero() {
+		marketPrice, ok := MarketPrices.Load(order.Symbol())
+		for !ok {
+			marketPrice, ok = MarketPrices.Load(order.Symbol())
+		}
+		utils.SettleMarketOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), order.Symbol(), marketPrice.(decimal.Decimal), order.Quantity(), time.Now())
+		log.Println("market order settled aha")
+	} else if err := addOrder(order); err != nil {
 		log.Println("[websocket server]: Add order failed, error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusAccepted, gin.H{"result": "Add order successful"})
 }
 
