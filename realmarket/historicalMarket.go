@@ -12,7 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const Start = 1451606400 // January 1, 2016 00:00:00 AM
+const Start = 1462104000 // May 1, 2016 00:00:00 AM
 const MarketHistoryUpdateInterval = time.Minute
 const FiveHours = 18000
 
@@ -42,9 +42,10 @@ func loadMarketHistory(symbol string) {
 		now := time.Now()
 		tick := now.Truncate(MarketHistoryUpdateInterval).Add(MarketHistoryUpdateInterval)
 		time.Sleep(tick.Sub(now) + time.Second)
-		rows := requestMarketHistory(symbol, now.Unix(), 55)
+		curr := now.Unix()
+		rows := requestMarketHistory(symbol, curr, 60)
 		if len(rows) > 1 {
-			panic("Update new market but get two rows")
+			log.Println(rows)
 		}
 		// TIME, OPEN, CLOSE, HIGH, LOW, VOLUME
 		LastCandlesticks.Store(symbol, &Candlestick{Time: time.Unix(rows[0][0].IntPart(), 0), Open: rows[0][1],

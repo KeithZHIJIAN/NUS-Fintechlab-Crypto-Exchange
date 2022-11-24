@@ -3,6 +3,7 @@ package realmarket
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ import (
 
 var OrderBooks map[string]*orderbook.OrderBook
 
-func OrderBookAgentStart() {
+func MatchingAgentStart() {
 	OrderBooks = make(map[string]*orderbook.OrderBook)
 	for _, symbol := range SymbolMap {
 		OrderBooks[symbol] = orderbook.NewOrderBook(symbol)
@@ -57,13 +58,13 @@ func matchOrders(marketPrice decimal.Decimal, ot *orderbook.OrderTree) {
 	}
 	currTime := time.Now()
 	for _, order := range filledList {
-		fillOrder(order, currTime)
+		fillOrder(order, marketPrice, currTime)
 	}
 }
 
 // Remove locked asset and close order
-func fillOrder(order *orderbook.Order, currTime time.Time) error {
-	order.Fill(order.Price(), order.Quantity(), currTime)
+func fillOrder(order *orderbook.Order, marketPrice decimal.Decimal, currTime time.Time) error {
+	order.Fill(marketPrice, order.Quantity(), currTime)
 	ot := OrderBooks[order.Symbol()].GetAsks()
 	if order.IsBuy() {
 		ot = OrderBooks[order.Symbol()].GetBids()
@@ -71,12 +72,18 @@ func fillOrder(order *orderbook.Order, currTime time.Time) error {
 	ot.Lock()
 	defer ot.Unlock()
 	ot.Remove(orderbook.NewPrice(order.Price(), order.IsBuy()), order.ID())
-	return utils.SettleTrade(order.IsBuy(), order.Symbol(), order.ID(), order.WalletId(), order.OwnerId(), order.Quantity(), order.Price(), order.FillCost(), order.CreateTime(), currTime)
+	return utils.SettleTrade(order.IsBuy(), order.Symbol(), order.ID(), order.WalletId(), order.OwnerId(), order.Quantity(), marketPrice, order.FillCost(), order.CreateTime(), currTime)
 }
+
+var AllowedOrigins = map[string]bool{"http://localhost:3000": true, "http://localhost:8000": true}
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		origin := "http://localhost:3000"
+		if _, ok := AllowedOrigins[c.Request.Header.Get("Origin")]; ok {
+			origin = c.Request.Header.Get("Origin")
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -199,10 +206,24 @@ func modifyOrderHandler(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"result": "Modify order successful"})
 }
 
+func checkAddOrderRequestBody(requestBody *RequestBody) error {
+	if requestBody.Price.IsNegative() {
+		return fmt.Errorf("Negative price")
+	} else if requestBody.Quantity.IsNegative() {
+		return fmt.Errorf("Negative quantity")
+	}
+	return nil
+}
+
 func addOrderHandler(c *gin.Context) {
 	var requestBody RequestBody
 	if err := c.BindJSON(&requestBody); err != nil {
 		log.Println("[websocket server]: Add order bind JSON failed, error: ", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := checkAddOrderRequestBody(&requestBody); err != nil {
+		log.Println("[websocket server]: Add order check validation failed, error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -212,7 +233,7 @@ func addOrderHandler(c *gin.Context) {
 		for !ok {
 			marketPrice, ok = MarketPrices.Load(order.Symbol())
 		}
-		utils.SettleMarketOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), order.Symbol(), marketPrice.(decimal.Decimal), order.Quantity(), time.Now())
+		utils.SettleMarketOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), order.Symbol(), calcMarketOrderFillPrice(order.IsBuy(), marketPrice.(decimal.Decimal)), order.Quantity(), time.Now())
 		log.Println("market order settled aha")
 	} else if err := addOrder(order); err != nil {
 		log.Println("[websocket server]: Add order failed, error: ", err.Error())
@@ -221,6 +242,36 @@ func addOrderHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"result": "Add order successful"})
+}
+
+func calcMarketOrderFillPrice(isBuy bool, marketPrice decimal.Decimal) decimal.Decimal {
+	temp, _ := marketPrice.Float64()
+	currPrice := float32(temp)
+	var fillPrice decimal.Decimal
+	if isBuy {
+		minPrice := max(currPrice*0.99, currPrice-100)
+		maxPrice := min(currPrice*1.1, currPrice+100)
+		fillPrice = decimal.NewFromInt(int64(rand.Intn(int(maxPrice)-int(minPrice)) + int(minPrice))).Add(decimal.NewFromInt(int64(rand.Intn(100))).DivRound(decimal.NewFromInt(100), 2))
+	} else {
+		minPrice := max(currPrice*0.9, currPrice-100)
+		maxPrice := min(currPrice*1.01, currPrice+100)
+		fillPrice = decimal.NewFromInt(int64(rand.Intn(int(maxPrice)-int(minPrice)) + int(minPrice))).Sub(decimal.NewFromInt(int64(rand.Intn(100))).DivRound(decimal.NewFromInt(100), 2))
+	}
+	return fillPrice
+}
+
+func max(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func parseOrder(req *RequestBody) *orderbook.Order {

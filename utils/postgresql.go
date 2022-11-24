@@ -232,23 +232,23 @@ func lockBalanceAndAssetRows(txn *sql.Tx, userID, walletID, symbol string) {
 
 func updateBalanceAndAssets(txn *sql.Tx, isBuy bool, userID, walletID, symbol string, amount, fillCost decimal.Decimal) {
 	if isBuy {
-		query := "UPDATE USERS SET locked = (SELECT locked FROM users WHERE userid = $1) - $2 WHERE userid = $1;"
+		query := "UPDATE USERS SET locked = locked - $2 WHERE userid = $1;"
 		_, err := txn.Exec(query, userID, fillCost)
 		if err != nil {
 			panic(err)
 		}
-		query = "UPDATE WALLET_ASSETS SET amount = (SELECT amount FROM WALLET_ASSETS WHERE walletid = $1 AND symbol = $2) + $3 WHERE walletid = $1 AND symbol = $2;"
+		query = "UPDATE WALLET_ASSETS SET amount = amount + $3 WHERE walletid = $1 AND symbol = $2;"
 		_, err = txn.Exec(query, walletID, strings.ToLower(symbol), amount)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		query := "UPDATE WALLET_ASSETS SET locked = (SELECT locked FROM WALLET_ASSETS WHERE walletid = $1 AND symbol = $2) - $3 WHERE walletid = $1 AND symbol = $2;"
+		query := "UPDATE WALLET_ASSETS SET locked = locked - $3 WHERE walletid = $1 AND symbol = $2;"
 		_, err := txn.Exec(query, walletID, strings.ToLower(symbol), amount)
 		if err != nil {
 			panic(err)
 		}
-		query = "UPDATE USERS SET balance = (SELECT balance FROM users WHERE userid = $1) + $2 WHERE userid = $1;"
+		query = "UPDATE USERS SET balance = balance + $2 WHERE userid = $1;"
 		_, err = txn.Exec(query, userID, fillCost)
 		if err != nil {
 			panic(err)
@@ -257,12 +257,12 @@ func updateBalanceAndAssets(txn *sql.Tx, isBuy bool, userID, walletID, symbol st
 }
 
 func rollbackBalance(txn *sql.Tx, userID, symbol string, lockedBalance decimal.Decimal) {
-	query := "UPDATE USERS SET locked = (SELECT locked FROM users WHERE userid = $1) - $2 WHERE userid = $1;"
+	query := "UPDATE USERS SET locked = locked - $2 WHERE userid = $1;"
 	_, err := txn.Exec(query, userID, lockedBalance)
 	if err != nil {
 		panic(err)
 	}
-	query = "UPDATE USERS SET balance = (SELECT balance FROM users WHERE userid = $1) + $2 WHERE userid = $1;"
+	query = "UPDATE USERS SET balance = balance + $2 WHERE userid = $1;"
 	_, err = txn.Exec(query, userID, lockedBalance)
 	if err != nil {
 		panic(err)
@@ -270,12 +270,12 @@ func rollbackBalance(txn *sql.Tx, userID, symbol string, lockedBalance decimal.D
 }
 
 func rollbackAsset(txn *sql.Tx, walletID, symbol string, amount decimal.Decimal) {
-	query := "UPDATE WALLET_ASSETS SET locked = (SELECT locked FROM WALLET_ASSETS WHERE walletid = $1 AND symbol = $2) - $3 WHERE walletid = $1 AND symbol = $2;"
+	query := "UPDATE WALLET_ASSETS SET locked = locked - $3 WHERE walletid = $1 AND symbol = $2;"
 	_, err := txn.Exec(query, walletID, strings.ToLower(symbol), amount)
 	if err != nil {
 		panic(err)
 	}
-	query = "UPDATE WALLET_ASSETS SET amount = (SELECT amount FROM WALLET_ASSETS WHERE walletid = $1 AND symbol = $2) + $3 WHERE walletid = $1 AND symbol = $2;"
+	query = "UPDATE WALLET_ASSETS SET amount = amount + $3 WHERE walletid = $1 AND symbol = $2;"
 	_, err = txn.Exec(query, walletID, strings.ToLower(symbol), amount)
 	if err != nil {
 		panic(err)
@@ -350,7 +350,7 @@ func createOpenAskOrder(txn *sql.Tx, orderID, walletID, userID, symbol string, p
 }
 
 func lockBalance(txn *sql.Tx, userID string, quantity, price decimal.Decimal) {
-	query := "UPDATE users SET balance = (SELECT balance FROM users WHERE userid = $1) - $2, LOCKED = (SELECT locked FROM users WHERE userid = $1) + $2 WHERE userid = $1;"
+	query := "UPDATE users SET balance = balance - $2, LOCKED = locked + $2 WHERE userid = $1;"
 	_, err := txn.Exec(query, userID, quantity.Mul(price))
 	if err != nil {
 		panic(err)
@@ -358,7 +358,7 @@ func lockBalance(txn *sql.Tx, userID string, quantity, price decimal.Decimal) {
 }
 
 func lockAsset(txn *sql.Tx, walletID, symbol string, quantity decimal.Decimal) {
-	query := "UPDATE wallet_assets SET amount = (SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2) - $3, locked = (SELECT locked FROM wallet_assets WHERE walletid = $1 AND symbol = $2) + $3 WHERE walletid = $1 AND symbol = $2;"
+	query := "UPDATE wallet_assets SET amount = amount - $3, locked = locked + $3 WHERE walletid = $1 AND symbol = $2;"
 	_, err := txn.Exec(query, walletID, strings.ToLower(symbol), quantity)
 	if err != nil {
 		panic(err)
@@ -430,8 +430,13 @@ func updateAskOrder(txn *sql.Tx, symbol, orderID string, price, quantity decimal
 	}
 }
 
-func ReadHistoricalMarket(symbol string) *sql.Rows {
-	query := fmt.Sprintf("SELECT * FROM MARKET_HISTORY_%s ORDER BY TIME DESC LIMIT 3600", symbol)
+func ReadHistoricalMarket(symbol string, limit int) *sql.Rows {
+	var query string
+	if limit != 0 {
+		query = fmt.Sprintf("SELECT * FROM MARKET_HISTORY_%s ORDER BY TIME DESC LIMIT %d", symbol, limit)
+	} else {
+		query = fmt.Sprintf("SELECT * FROM MARKET_HISTORY_%s ORDER BY TIME DESC LIMIT 3600", symbol)
+	}
 	rows, err := DB.Query(query)
 	if err != nil {
 		panic(fmt.Errorf(err.Error()))
@@ -495,12 +500,12 @@ func SettleMarketOrder(isBuy bool, orderID, walletID, userID, symbol string, pri
 }
 
 func settleMarketBuy(txn *sql.Tx, userID, walletID, symbol string, quantity, price decimal.Decimal) {
-	query := "UPDATE users SET balance = (SELECT balance FROM users WHERE userid = $1) - $2 WHERE userid = $1;"
+	query := "UPDATE users SET balance = balance - $2 WHERE userid = $1;"
 	_, err := txn.Exec(query, userID, quantity.Mul(price))
 	if err != nil {
 		panic(err)
 	}
-	query = "UPDATE wallet_assets SET amount = (SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2) + $3 WHERE walletid = $1 AND symbol = $2;"
+	query = "UPDATE wallet_assets SET amount = amount + $3 WHERE walletid = $1 AND symbol = $2;"
 	_, err = txn.Exec(query, walletID, strings.ToLower(symbol), quantity)
 	if err != nil {
 		panic(err)
@@ -508,14 +513,125 @@ func settleMarketBuy(txn *sql.Tx, userID, walletID, symbol string, quantity, pri
 }
 
 func settleMarketSell(txn *sql.Tx, userID, walletID, symbol string, quantity, price decimal.Decimal) {
-	query := "UPDATE users SET balance = (SELECT balance FROM users WHERE userid = $1) + $2 WHERE userid = $1;"
+	query := "UPDATE users SET balance = balance + $2 WHERE userid = $1;"
 	_, err := txn.Exec(query, userID, quantity.Mul(price))
 	if err != nil {
 		panic(err)
 	}
-	query = "UPDATE wallet_assets SET amount = (SELECT amount FROM wallet_assets WHERE walletid = $1 AND symbol = $2) - $3 WHERE walletid = $1 AND symbol = $2;"
+	query = "UPDATE wallet_assets SET amount = amount - $3 WHERE walletid = $1 AND symbol = $2;"
 	_, err = txn.Exec(query, walletID, strings.ToLower(symbol), quantity)
 	if err != nil {
 		panic(err)
 	}
+}
+
+// USERID		INTEGER	NOT NULL,
+// AMOUNT      DECIMAL(15,5)	NOT NULL,
+// TIME        timestamp without time zone 	NOT NULL,
+
+func CreatePL(userID string, amount decimal.Decimal, currTime time.Time) {
+	query := "INSERT INTO PLS (USERID, AMOUNT, TIME) VALUES ($1,$2,$3);"
+	_, err := DB.Exec(query, userID, amount, currTime)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func ReadUsersBalance() *sql.Rows {
+	query := "SELECT userid, balance, locked FROM users;"
+	rows, err := DB.Query(query)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadUserAsset(userID string) *sql.Rows {
+	query := "SELECT symbol, amount, locked FROM wallet_assets where walletid = $1;"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadUserPL(userID string) *sql.Rows {
+	query := "SELECT time, amount FROM pls WHERE userid = $1 ORDER BY time LIMIT 288;"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func CreateTopUps(userID string, amount decimal.Decimal, currTime time.Time) error {
+	txn, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	query := "INSERT INTO TOPUPS (USERID, AMOUNT, TIME) VALUES ($1,$2,$3);"
+	_, err = txn.Exec(query, userID, amount, currTime)
+	if err != nil {
+		return err
+	}
+	query = "UPDATE USERS SET BALANCE = BALANCE + $2 WHERE userid= $1"
+	_, err = txn.Exec(query, userID, amount)
+	if err != nil {
+		return err
+	}
+	return txn.Commit()
+}
+
+func ReadLastPL(userID string) *sql.Rows {
+	query := "SELECT amount FROM PLS WHERE USERID = $1 ORDER BY TIME DESC LIMIT 1;"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadFirstPL(userID string) *sql.Rows {
+	query := "SELECT amount FROM PLS WHERE USERID = $1 ORDER BY TIME ASC LIMIT 1;"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadCumulativeTopups(userID string) *sql.Rows {
+	query := "SELECT SUM(amount) FROM topups WHERE USERID = $1;"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadUserLearnStageByID(userID string) *sql.Rows {
+	query := "SELECT learnstage FROM users WHERE userid = $1"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadUserBalanceByID(userID string) *sql.Rows {
+	query := "SELECT balance FROM users WHERE userid = $1"
+	rows, err := DB.Query(query, userID)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
+}
+
+func ReadWalletAssetByIDAndSymbol(walletID, symbol string) *sql.Rows {
+	query := "SELECT amount FROM wallet_assets WHERE walletid = $1 and symbol = $2"
+	rows, err := DB.Query(query, walletID, symbol)
+	if err != nil {
+		panic(fmt.Errorf(err.Error()))
+	}
+	return rows
 }

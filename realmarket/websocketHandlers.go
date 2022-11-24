@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -56,6 +57,15 @@ var marketHistoryLock sync.Mutex
 
 func realMarketHistoryHandler(c *gin.Context) {
 	fmt.Println("realMarketHistoryHandler called")
+	limitString := c.Query("limit")
+	limit := 0
+	var err error
+	if limitString != "" {
+		limit, err = strconv.Atoi(limitString)
+		if err != nil {
+			panic(fmt.Errorf(err.Error()))
+		}
+	}
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		panic(fmt.Errorf(err.Error()))
@@ -83,7 +93,7 @@ func realMarketHistoryHandler(c *gin.Context) {
 	marketHistoryMsg.Symbol = res.ProductID
 	marketHistoryMsg.Type = "snapshot"
 	MarketHistory := make([]Candlestick, 0)
-	rows := utils.ReadHistoricalMarket(res.ProductID)
+	rows := utils.ReadHistoricalMarket(res.ProductID, limit)
 	for rows.Next() {
 		mhr := Candlestick{}
 		if err := rows.Scan(&mhr.Time, &mhr.Open, &mhr.Close,
@@ -169,6 +179,6 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 4096,
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
-		return origin == "http://localhost:3000"
+		return origin == "http://localhost:3000" || origin == "http://localhost:8000"
 	},
 }

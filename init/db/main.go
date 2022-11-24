@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/KeithZHIJIAN/nce-realmarket/utils"
@@ -32,6 +34,7 @@ var TABLES = [...]string{
 	"order_fillings_ethusd",
 	"order_fillings_xrpusd",
 	"topups",
+	"pls",
 }
 
 var INDEXES = [...]string{
@@ -46,6 +49,8 @@ var INDEXES = [...]string{
 	"idx_closed_orders_ethusd_owner",
 	"idx_market_history_btcusd_time",
 	"idx_market_history_ethusd_time",
+	"idx_topups_id_time",
+	"idx_pls_id_time",
 }
 
 func executeSqlScript(filepath string) {
@@ -93,6 +98,27 @@ func dropAllIndexes() {
 	}
 }
 
+func hashedPassword(pwd string) string {
+	h := sha256.New()
+	_, err := h.Write([]byte(pwd))
+	if err != nil {
+		panic(err)
+	}
+	bs := h.Sum(nil)
+	return fmt.Sprintf("%x", bs)
+}
+
+func createInitUser() {
+	for i := 1; i < 5; i++ {
+		query := os.Getenv(fmt.Sprintf("USER%dQUERY", i))
+		_, err := utils.DB.Exec(query, hashedPassword(os.Getenv(fmt.Sprintf("USER%dPWD", i))))
+		if err != nil {
+			panic(err)
+		}
+
+	}
+}
+
 func main() {
 	dropAllTables()
 	executeSqlScript("./init/db/CREATE_GLOBAL_TABLES.txt")
@@ -108,6 +134,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	createInitUser()
 	executeSqlScript("./init/db/INIT_ORDERBOOK.txt")
 	fmt.Println("Database initialized!")
 }

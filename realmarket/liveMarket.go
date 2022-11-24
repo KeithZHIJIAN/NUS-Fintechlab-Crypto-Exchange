@@ -66,7 +66,7 @@ type LiveMarket struct {
 	CurrCandlestick Candlestick
 }
 
-func LoadOrderBook() {
+func OrderBookAgentStart() {
 	// "BTC-USD": asks: [[100,0.001],[100.1,0.002]], bids: []
 	MarketOrderBooks = make(map[string]map[string]*skiplist.SkipList)
 	c, _, err := websocket.DefaultDialer.Dial("wss://ws-feed.exchange.coinbase.com", nil)
@@ -78,7 +78,7 @@ func LoadOrderBook() {
 	if err != nil {
 		panic(fmt.Errorf(err.Error()))
 	}
-	log.Println("LoadOrderBook: Order Book websocket connection estbalished")
+	log.Println("OrderBookAgentStart: Order Book websocket connection estbalished")
 	defer c.Close()
 
 	for {
