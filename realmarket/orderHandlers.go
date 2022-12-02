@@ -218,11 +218,12 @@ func checkAddOrderRequestBody(requestBody *RequestBody) error {
 func addOrderHandler(c *gin.Context) {
 	var requestBody RequestBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		log.Println("[websocket server]: Add order bind JSON failed, error: ", err.Error())
+		log.Println("[websocket server]: Add order bind JSON failed, error: ", err.Error(), requestBody)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	if err := checkAddOrderRequestBody(&requestBody); err != nil {
+		log.Println(requestBody)
 		log.Println("[websocket server]: Add order check validation failed, error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -233,8 +234,12 @@ func addOrderHandler(c *gin.Context) {
 		for !ok {
 			marketPrice, ok = MarketPrices.Load(order.Symbol())
 		}
-		utils.SettleMarketOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), order.Symbol(), calcMarketOrderFillPrice(order.IsBuy(), marketPrice.(decimal.Decimal)), order.Quantity(), time.Now())
-		log.Println("market order settled aha")
+		err := utils.SettleMarketOrder(order.IsBuy(), order.ID(), order.WalletId(), order.OwnerId(), order.Symbol(), calcMarketOrderFillPrice(order.IsBuy(), marketPrice.(decimal.Decimal)), order.Quantity(), time.Now())
+		if err != nil {
+			log.Println("[websocket server]: Add order settle order failed, error: ", err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	} else if err := addOrder(order); err != nil {
 		log.Println("[websocket server]: Add order failed, error: ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

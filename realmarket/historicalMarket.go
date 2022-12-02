@@ -46,6 +46,7 @@ func loadMarketHistory(symbol string) {
 		rows := requestMarketHistory(symbol, curr, 60)
 		if len(rows) > 1 {
 			log.Println(rows)
+			rows = rows[1:]
 		}
 		// TIME, OPEN, CLOSE, HIGH, LOW, VOLUME
 		LastCandlesticks.Store(symbol, &Candlestick{Time: time.Unix(rows[0][0].IntPart(), 0), Open: rows[0][1],

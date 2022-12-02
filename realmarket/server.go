@@ -5,6 +5,7 @@ import (
 )
 
 func WebsocketServerStart() {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.GET("/orderbook", realOrderBookHandler)
 	r.GET("/markethistory", realMarketHistoryHandler)
